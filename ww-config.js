@@ -99,6 +99,7 @@ export default {
             label: { en: 'On Booking' },
             event: {
                 value: {
+                    StagingStatus: 'Sending',
                     isEdit: false,
                     Booking_Header: { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null },
                     Booking_Items: [],
@@ -131,7 +132,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'object',
-                tooltip: '{ Booking_Header: { id, BookingNumber, created_at, BookingTitle, PIC_ID }, Booking_Items: [{ SKU, Quantity, Status }] }',
+                tooltip: '{ Booking_Header: { id, BookingNumber, created_at, BookingTitle, PIC_ID, updated_at? }, Booking_Items: [...], StagingStatus?: null | "Sending" | "Successful" }',
             },
             /* wwEditor:end */
         },

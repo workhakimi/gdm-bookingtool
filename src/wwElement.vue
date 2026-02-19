@@ -257,18 +257,29 @@
             <button
                 class="btn-confirm"
                 :class="{
-                    'btn-confirm--overbooked': hasOverbooking && canConfirm,
-                    'btn-confirm--disabled': !canConfirm,
+                    'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
+                    'btn-confirm--disabled': !canConfirm && !stagingStatus,
+                    'btn-confirm--sending': stagingStatus === 'Sending',
+                    'btn-confirm--success': stagingStatus === 'Successful',
                 }"
-                :disabled="!canConfirm"
+                :disabled="stagingStatus === 'Sending' || stagingStatus === 'Successful' || !canConfirm"
                 @click="confirmBooking"
                 type="button"
             >
                 <!-- Overbooked warning icon -->
-                <svg v-if="hasOverbooking && canConfirm" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-if="hasOverbooking && canConfirm && !stagingStatus" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <!-- Sending: clock -->
+                <svg v-else-if="stagingStatus === 'Sending'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <!-- Success: check -->
+                <svg v-else-if="stagingStatus === 'Successful'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
                 </svg>
                 <!-- Normal clock/confirm icon -->
                 <svg v-else class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -277,7 +288,9 @@
                 </svg>
                 {{ confirmLabel }}
             </button>
-            <p class="disclaimer">*Stock reserved upon confirmation</p>
+            <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
+                Booked as <span class="booking-success-var">{{ cartHeader?.BookingNumber }}</span> - <span class="booking-success-var">{{ cartHeader?.BookingTitle }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
+            </p>
         </div>
     </div>
 </template>
@@ -325,6 +338,7 @@ export default {
         });
         const cartHeader = computed(() => cartDataObj.value?.Booking_Header || {});
         const cartItems = computed(() => cartDataObj.value?.Booking_Items || []);
+        const stagingStatus = computed(() => cartDataObj.value?.StagingStatus ?? null);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -407,11 +421,31 @@ export default {
                 : 'Drafting New Order'
         );
         const itemCount = computed(() => cartItems.value.length);
-        const confirmLabel = computed(() =>
-            hasOverbooking.value && canConfirm.value
-                ? 'Proceed (Overbooked)'
-                : 'Confirm Booking'
-        );
+        const confirmLabel = computed(() => {
+            if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
+            if (stagingStatus.value === 'Successful') return 'Successfully Booked';
+            return hasOverbooking.value && canConfirm.value ? 'Proceed (Overbooked)' : 'Confirm Booking';
+        });
+        const successTeammateName = computed(() => {
+            if (stagingStatus.value !== 'Successful') return '';
+            const pid = cartHeader.value?.PIC_ID;
+            if (pid == null) return '';
+            const t = resolvedTeammates.value.find(t => t.id === pid);
+            return t ? t.Name : '';
+        });
+        const formattedBookingTime = computed(() => {
+            if (stagingStatus.value !== 'Successful') return '';
+            const raw = cartHeader.value?.updated_at ?? cartDataObj.value?.updated_at;
+            if (!raw) return '';
+            const d = new Date(raw);
+            if (Number.isNaN(d.getTime())) return '';
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const day = d.getDate();
+            const month = months[d.getMonth()];
+            const year = d.getFullYear();
+            const time = d.toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' }).replace(/\s*([ap]m)/i, (_, m) => m.toLowerCase());
+            return `${day} ${month} ${year}, ${time}`;
+        });
         const bookingDropdownDisplay = computed(() =>
             selectedBookingOption.value
                 ? `${selectedBookingOption.value.BookingNumber} • ${selectedBookingOption.value.BookingTitle}`
@@ -630,6 +664,7 @@ export default {
                 name: 'booking',
                 event: {
                     value: {
+                        StagingStatus: 'Sending',
                         isEdit: editing,
                         Booking_Header: header,
                         Booking_Items: bookingItemsAsBooked,
@@ -1273,17 +1308,39 @@ $transition: 0.15s ease;
         cursor: not-allowed;
         &:hover { background: $gray-200; }
     }
+    &.btn-confirm--sending {
+        background: $gray-900;
+        color: $white;
+        cursor: wait;
+        &:hover { background: $gray-900; }
+    }
+    &.btn-confirm--success {
+        background: #059669;
+        color: $white;
+        cursor: default;
+        &:hover { background: #059669; }
+    }
 }
 .confirm-icon {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
 }
-.disclaimer {
-    font-size: 11px;
-    color: $gray-400;
-    text-align: center;
-    margin: 0;
-    font-style: italic;
+.confirm-icon--spin {
+    animation: confirm-spin 1s linear infinite;
+}
+@keyframes confirm-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.booking-success-line {
+    font-size: 12px;
+    color: $gray-500;
+    margin: 8px 0 0;
+    line-height: 1.5;
+}
+.booking-success-var {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
 }
 </style>
