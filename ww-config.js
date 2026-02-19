@@ -23,6 +23,14 @@ export default {
     },
     triggerEvents: [
         {
+            name: 'manualAdd',
+            label: { en: 'On Manual Add' },
+            event: {
+                value: { SKU: null, Quantity: 0, Status: null },
+            },
+            default: false,
+        },
+        {
             name: 'removeFromCart',
             label: { en: 'On Remove From Cart' },
             event: {

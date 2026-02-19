@@ -487,12 +487,10 @@ export default {
             if (!sku) return;
 
             if (refLookup.value[sku]) {
-                const existing = internalCart.value.findIndex(c => c.sku === sku);
-                if (existing >= 0) {
-                    internalCart.value[existing].quantity += 1;
-                } else {
-                    internalCart.value.push({ sku, quantity: 1 });
-                }
+                emit('trigger-event', {
+                    name: 'manualAdd',
+                    event: { value: { SKU: sku, Quantity: 0, Status: null } },
+                });
                 quickAddInput.value = '';
                 quickAddError.value = '';
             } else {
