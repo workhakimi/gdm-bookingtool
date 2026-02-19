@@ -563,15 +563,28 @@ export default {
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
+            const h = cartHeader.value || {};
             emit('trigger-event', {
                 name: 'clearCart',
                 event: {
                     value: {
-                        Booking_Header: { ...EMPTY_HEADER },
+                        Booking_Header: {
+                            id: h.id ?? null,
+                            BookingNumber: h.BookingNumber ?? null,
+                            created_at: h.created_at ?? null,
+                            BookingTitle: bookingTitle.value || h.BookingTitle ?? null,
+                            PIC_ID: selectedPIC.value ?? h.PIC_ID ?? null,
+                        },
                         Booking_Items: [],
                     },
                 },
             });
+        }
+
+        function generateBookingNumber() {
+            const t = Date.now();
+            const digits = (t % 1e6).toString().padStart(6, '0');
+            return `BN-${digits}`;
         }
 
         function confirmBooking() {
@@ -583,6 +596,22 @@ export default {
 
             const now = new Date().toISOString();
             const snapshot = buildCartVariable();
+            const editing = isConnected.value;
+
+            const bookingItemsAsBooked = snapshot.Booking_Items.map(i => ({
+                SKU: i.SKU,
+                Quantity: i.Quantity,
+                Status: 'Booked',
+            }));
+
+            const header = {
+                ...snapshot.Booking_Header,
+                created_at: editing ? (cartHeader.value?.created_at || null) : now,
+            };
+            if (!editing) {
+                header.id = null;
+                header.BookingNumber = generateBookingNumber();
+            }
 
             if (hasOverbooking.value) {
                 emit('trigger-event', {
@@ -590,7 +619,8 @@ export default {
                     event: {
                         value: {
                             overbooked: true,
-                            ...snapshot,
+                            Booking_Header: header,
+                            Booking_Items: bookingItemsAsBooked,
                         },
                     },
                 });
@@ -600,12 +630,9 @@ export default {
                 name: 'booking',
                 event: {
                     value: {
-                        isEdit: isConnected.value,
-                        Booking_Header: {
-                            ...snapshot.Booking_Header,
-                            created_at: isConnected.value ? (cartHeader.value?.created_at || null) : now,
-                        },
-                        Booking_Items: snapshot.Booking_Items,
+                        isEdit: editing,
+                        Booking_Header: header,
+                        Booking_Items: bookingItemsAsBooked,
                         updated_at: now,
                     },
                 },
@@ -1184,6 +1211,8 @@ $transition: 0.15s ease;
     gap: 8px;
     background: $white;
     transition: border-color $transition;
+    font-family: inherit;
+    font-size: 13px;
     &:focus-within { border-color: $blue; }
     .field-icon {
         width: 18px;
@@ -1193,12 +1222,16 @@ $transition: 0.15s ease;
     }
     .icon-input {
         flex: 1;
+        min-width: 0;
         border: none;
         outline: none;
         font-size: 13px;
+        font-weight: 400;
+        line-height: 1.4;
         color: $gray-900;
         font-family: inherit;
         background: transparent;
+        padding: 0;
         &::placeholder { color: $gray-400; }
     }
 }
