@@ -23,6 +23,17 @@ export default {
     },
     triggerEvents: [
         {
+            name: 'clearCart',
+            label: { en: 'On Clear Cart' },
+            event: {
+                value: {
+                    Booking_Header: { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null },
+                    Booking_Items: [],
+                },
+            },
+            default: false,
+        },
+        {
             name: 'manualAdd',
             label: { en: 'On Manual Add' },
             event: {

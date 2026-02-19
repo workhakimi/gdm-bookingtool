@@ -7,9 +7,16 @@
                     <h2 class="header-title">Booking Cart</h2>
                     <p class="header-subtitle">{{ subtitle }}</p>
                 </div>
-                <div class="header-count">
-                    <span class="count-divider">|</span>
+                <div class="header-count-row">
                     <span class="count-text">{{ itemCount }} Items</span>
+                    <button
+                        type="button"
+                        class="btn-empty-cart"
+                        :disabled="itemCount === 0"
+                        @click="emptyCart"
+                    >
+                        Empty Cart
+                    </button>
                 </div>
             </div>
 
@@ -166,12 +173,12 @@
             <!-- Quick Add SKU -->
             <div class="rp-section">
                 <label class="rp-label rp-label--caps">
-                    <button class="label-clear-btn" @click="clearQuickAdd" type="button">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
+                    <span class="label-icon-deco">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
-                    </button>
+                    </span>
                     QUICK ADD SKU
                 </label>
                 <div class="quick-add-row">
@@ -544,6 +551,22 @@ export default {
             });
         }
 
+        function emptyCart() {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+
+            emit('trigger-event', {
+                name: 'clearCart',
+                event: {
+                    value: {
+                        Booking_Header: { ...EMPTY_HEADER },
+                        Booking_Items: [],
+                    },
+                },
+            });
+        }
+
         function confirmBooking() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
@@ -647,6 +670,7 @@ export default {
             clearQuickAdd,
             connectBooking,
             disconnectBooking,
+            emptyCart,
             confirmBooking,
             toggleBookingDropdown,
             selectBooking,
@@ -718,22 +742,39 @@ $transition: 0.15s ease;
     color: $gray-500;
     margin: 2px 0 0;
 }
-.header-count {
+.header-count-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     margin-top: 2px;
     white-space: nowrap;
-}
-.count-divider {
-    color: $gray-300;
-    font-weight: 300;
-    font-size: 18px;
 }
 .count-text {
     font-size: 13px;
     color: $gray-500;
     font-weight: 500;
+}
+.btn-empty-cart {
+    margin-left: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: $gray-500;
+    background: $gray-100;
+    border: 1px solid $gray-200;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color $transition, background $transition, border-color $transition;
+    &:hover:not(:disabled) {
+        color: $gray-700;
+        background: $gray-200;
+        border-color: $gray-300;
+    }
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 }
 
 /* ── Empty state ── */
@@ -1060,20 +1101,17 @@ $transition: 0.15s ease;
 }
 
 /* ── Quick Add ── */
-.label-clear-btn {
-    width: 16px;
-    height: 16px;
-    display: flex;
+.label-icon-deco {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: none;
-    background: none;
     color: $gray-400;
-    cursor: pointer;
     padding: 0;
     flex-shrink: 0;
-    svg { width: 12px; height: 12px; }
-    &:hover { color: $gray-700; }
+    pointer-events: none;
+    svg { width: 14px; height: 14px; }
 }
 .quick-add-row {
     display: flex;
