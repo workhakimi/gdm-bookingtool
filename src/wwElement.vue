@@ -1211,8 +1211,6 @@ $transition: 0.15s ease;
     gap: 8px;
     background: $white;
     transition: border-color $transition;
-    font-family: inherit;
-    font-size: 13px;
     &:focus-within { border-color: $blue; }
     .field-icon {
         width: 18px;
@@ -1223,16 +1221,23 @@ $transition: 0.15s ease;
     .icon-input {
         flex: 1;
         min-width: 0;
+        height: 100%;
         border: none;
         outline: none;
+        padding: 0;
+        margin: 0;
+        background: transparent;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         font-size: 13px;
         font-weight: 400;
         line-height: 1.4;
         color: $gray-900;
-        font-family: inherit;
-        background: transparent;
-        padding: 0;
-        &::placeholder { color: $gray-400; }
+        -webkit-appearance: none;
+        appearance: none;
+        &::placeholder {
+            color: $gray-400;
+            font-weight: 400;
+        }
     }
 }
 
