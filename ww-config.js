@@ -42,10 +42,25 @@ export default {
             default: false,
         },
         {
+            name: 'quantityChange',
+            label: { en: 'On Quantity Change' },
+            event: {
+                value: {
+                    Booking_Header: { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null },
+                    Booking_Items: [],
+                },
+            },
+            default: false,
+        },
+        {
             name: 'overbooking',
             label: { en: 'On Overbooking' },
             event: {
-                value: { overbooked: true },
+                value: {
+                    overbooked: true,
+                    Booking_Header: { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null },
+                    Booking_Items: [],
+                },
             },
             default: false,
         },

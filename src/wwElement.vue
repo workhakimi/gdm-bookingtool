@@ -81,7 +81,7 @@
                                 :class="{ 'is-over': item.isOverLimit }"
                                 :value="item.quantity"
                                 min="0"
-                                @input="updateQuantity(idx, $event.target.value)"
+                                @change="updateQuantity(idx, $event.target.value)"
                             />
                         </div>
 
@@ -313,14 +313,11 @@ export default {
         const cartHeader = computed(() => cartDataObj.value?.Booking_Header || {});
         const cartItems = computed(() => cartDataObj.value?.Booking_Items || []);
 
-        // ── Internal state ──
-        const internalCart = ref([]);
-        const lastSyncedSkus = ref(new Set());
-        const lastSyncedHeaderId = ref(undefined);
-
+        // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
         const selectedPIC = ref(null);
         const selectedPICName = ref('');
+        const lastSyncedHeaderId = ref(undefined);
 
         const selectedBookingOption = ref(null);
         const bookingDropdownOpen = ref(false);
@@ -332,21 +329,14 @@ export default {
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
 
-        // ── Derived connected state (from cartData header) ──
+        // ── Derived state from variable ──
         const isConnected = computed(() => !!cartHeader.value?.id);
         const connectedBookingNumber = computed(() => cartHeader.value?.BookingNumber || null);
 
-        // ── Full sync when Booking_Header.id changes (connect / disconnect / init) ──
+        // ── Sync title / PIC from header when header ID changes ──
         watch(cartHeader, (header) => {
             const currentId = header?.id || null;
             if (currentId === lastSyncedHeaderId.value) return;
-
-            const items = cartItems.value || [];
-            internalCart.value = items.map(i => ({
-                sku: i.SKU,
-                quantity: i.Quantity != null ? i.Quantity : 0,
-            }));
-            lastSyncedSkus.value = new Set(items.map(i => i.SKU));
 
             bookingTitle.value = header?.BookingTitle || '';
             if (header?.PIC_ID) {
@@ -357,34 +347,9 @@ export default {
                 selectedPIC.value = null;
                 selectedPICName.value = '';
             }
-
             selectedBookingOption.value = (currentId && header?.BookingNumber) ? { ...header } : null;
             lastSyncedHeaderId.value = currentId;
         }, { immediate: true, deep: true });
-
-        // ── Incremental sync when Booking_Items changes (add from inventory) ──
-        watch(cartItems, (incoming) => {
-            const items = incoming || [];
-            const newSkuSet = new Set(items.map(i => i.SKU));
-            const oldSkuSet = lastSyncedSkus.value;
-
-            for (const item of items) {
-                if (!oldSkuSet.has(item.SKU) && !internalCart.value.find(c => c.sku === item.SKU)) {
-                    internalCart.value.push({
-                        sku: item.SKU,
-                        quantity: item.Quantity != null ? item.Quantity : 0,
-                    });
-                }
-            }
-
-            const removedSkus = [...oldSkuSet].filter(s => !newSkuSet.has(s));
-            if (removedSkus.length > 0) {
-                const removedSet = new Set(removedSkus);
-                internalCart.value = internalCart.value.filter(c => !removedSet.has(c.sku));
-            }
-
-            lastSyncedSkus.value = newSkuSet;
-        }, { deep: true });
 
         // ── Reference data lookup ──
         const refLookup = computed(() => {
@@ -393,22 +358,23 @@ export default {
             return map;
         });
 
-        // ── Resolved cart (display-ready) ──
+        // ── Resolved cart — reads directly from the variable ──
         const resolvedCart = computed(() => {
             const bufferOn = !!props.content?.buffer;
-            return internalCart.value.map(c => {
-                const ref = refLookup.value[c.sku];
+            return cartItems.value.map(i => {
+                const ref = refLookup.value[i.SKU];
                 const snt = ref ? (Number(ref.SNT) || 0) : 0;
                 const available = bufferOn ? Math.max(0, snt - 25) : snt;
+                const qty = i.Quantity != null ? i.Quantity : 0;
                 return {
-                    sku: c.sku,
-                    quantity: c.quantity,
+                    sku: i.SKU,
+                    quantity: qty,
                     model: ref ? ref.Model : 'Unknown Item',
                     color: ref ? ref.Color : '-',
                     size: ref ? ref.Size : '-',
                     imageLink: ref ? ref.ImageLink : null,
                     available,
-                    isOverLimit: c.quantity > available,
+                    isOverLimit: qty > available,
                     isUnknown: !ref,
                 };
             });
@@ -417,7 +383,7 @@ export default {
         // ── Computed helpers ──
         const hasOverbooking = computed(() => resolvedCart.value.some(i => i.isOverLimit));
         const canConfirm = computed(() =>
-            internalCart.value.length > 0 &&
+            cartItems.value.length > 0 &&
             bookingTitle.value.trim().length > 0 &&
             selectedPIC.value != null
         );
@@ -426,7 +392,7 @@ export default {
                 ? `Modifying Order #${connectedBookingNumber.value}`
                 : 'Drafting New Order'
         );
-        const itemCount = computed(() => internalCart.value.length);
+        const itemCount = computed(() => cartItems.value.length);
         const confirmLabel = computed(() =>
             hasOverbooking.value && canConfirm.value
                 ? 'Proceed (Overbooked)'
@@ -441,18 +407,24 @@ export default {
             selectedPICName.value || 'Select Teammate...'
         );
 
-        // ── Helper: look up original Status from the variable ──
-        function getItemStatus(sku) {
-            const orig = (cartItems.value || []).find(i => i.SKU === sku);
-            return orig ? orig.Status : null;
-        }
+        // ── Helper: build full cartData snapshot from the variable ──
+        function buildCartVariable({ excludeSku, quantityOverrides } = {}) {
+            let items = cartItems.value.map(i => ({
+                SKU: i.SKU,
+                Quantity: i.Quantity != null ? i.Quantity : 0,
+                Status: i.Status || null,
+            }));
 
-        // ── Helper: build the full variable snapshot ──
-        function buildCartVariable(excludeSku) {
-            let items = internalCart.value;
             if (excludeSku) {
-                items = items.filter(c => c.sku !== excludeSku);
+                items = items.filter(i => i.SKU !== excludeSku);
             }
+            if (quantityOverrides) {
+                for (const sku in quantityOverrides) {
+                    const item = items.find(i => i.SKU === sku);
+                    if (item) item.Quantity = quantityOverrides[sku];
+                }
+            }
+
             return {
                 Booking_Header: {
                     id: cartHeader.value?.id || null,
@@ -461,18 +433,25 @@ export default {
                     BookingTitle: bookingTitle.value || null,
                     PIC_ID: selectedPIC.value || null,
                 },
-                Booking_Items: items.map(c => ({
-                    SKU: c.sku,
-                    Quantity: c.quantity,
-                    Status: getItemStatus(c.sku),
-                })),
+                Booking_Items: items,
             };
         }
 
-        // ── Cart actions ──
+        // ── Actions — all emit, no internal state changes ──
+
         function updateQuantity(index, val) {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+
             const qty = Math.max(0, parseInt(val) || 0);
-            internalCart.value[index].quantity = qty;
+            const item = cartItems.value[index];
+            if (!item) return;
+
+            emit('trigger-event', {
+                name: 'quantityChange',
+                event: { value: buildCartVariable({ quantityOverrides: { [item.SKU]: qty } }) },
+            });
         }
 
         function removeItem(index) {
@@ -480,14 +459,15 @@ export default {
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
-            const removedSku = internalCart.value[index].sku;
+            const item = cartItems.value[index];
+            if (!item) return;
+
             emit('trigger-event', {
                 name: 'removeFromCart',
-                event: { value: buildCartVariable(removedSku) },
+                event: { value: buildCartVariable({ excludeSku: item.SKU }) },
             });
         }
 
-        // ── Quick Add ──
         function quickAdd() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
@@ -513,7 +493,6 @@ export default {
             quickAddError.value = '';
         }
 
-        // ── Connect existing booking ──
         function connectBooking() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
@@ -545,25 +524,18 @@ export default {
             });
         }
 
-        // ── Disconnect ──
         function disconnectBooking() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-
-            internalCart.value.forEach(c => { c.quantity = 0; });
-            bookingTitle.value = '';
-            selectedPIC.value = null;
-            selectedPICName.value = '';
-            selectedBookingOption.value = null;
 
             emit('trigger-event', {
                 name: 'loadBooking',
                 event: {
                     value: {
                         Booking_Header: { ...EMPTY_HEADER },
-                        Booking_Items: internalCart.value.map(c => ({
-                            SKU: c.sku,
+                        Booking_Items: cartItems.value.map(i => ({
+                            SKU: i.SKU,
                             Quantity: 0,
                             Status: null,
                         })),
@@ -572,7 +544,6 @@ export default {
             });
         }
 
-        // ── Confirm booking ──
         function confirmBooking() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
@@ -581,11 +552,17 @@ export default {
             if (!canConfirm.value) return;
 
             const now = new Date().toISOString();
+            const snapshot = buildCartVariable();
 
             if (hasOverbooking.value) {
                 emit('trigger-event', {
                     name: 'overbooking',
-                    event: { value: { overbooked: true } },
+                    event: {
+                        value: {
+                            overbooked: true,
+                            ...snapshot,
+                        },
+                    },
                 });
             }
 
@@ -595,16 +572,10 @@ export default {
                     value: {
                         isEdit: isConnected.value,
                         Booking_Header: {
-                            id: cartHeader.value?.id || null,
-                            BookingNumber: connectedBookingNumber.value,
+                            ...snapshot.Booking_Header,
                             created_at: isConnected.value ? (cartHeader.value?.created_at || null) : now,
-                            BookingTitle: bookingTitle.value,
-                            PIC_ID: selectedPIC.value,
                         },
-                        Booking_Items: internalCart.value.map(c => ({
-                            SKU: c.sku,
-                            Quantity: c.quantity,
-                        })),
+                        Booking_Items: snapshot.Booking_Items,
                         updated_at: now,
                     },
                 },
