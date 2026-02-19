@@ -36,6 +36,7 @@
                     <span class="th th-image">IMAGE</span>
                     <span class="th th-details">PRODUCT DETAILS</span>
                     <span class="th th-avail">AVAILABILITY</span>
+                    <span class="th th-status">STATUS</span>
                     <span class="th th-qty">ORDER QTY</span>
                     <span class="th th-action"></span>
                 </div>
@@ -78,6 +79,11 @@
                                 </svg>
                                 Over Limit
                             </span>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="td td-status">
+                            <span class="status-badge">{{ item.statusDisplay }}</span>
                         </div>
 
                         <!-- Order quantity -->
@@ -376,6 +382,7 @@ export default {
                 return {
                     sku: i.SKU,
                     quantity: qty,
+                    statusDisplay: i.Status && String(i.Status).trim() ? i.Status : 'Carted',
                     model: ref ? ref.Model : 'Unknown Item',
                     color: ref ? ref.Color : '-',
                     size: ref ? ref.Size : '-',
@@ -821,6 +828,7 @@ $transition: 0.15s ease;
 .th-image   { width: 64px;  flex-shrink: 0; }
 .th-details { flex: 1; }
 .th-avail   { width: 120px; text-align: center; flex-shrink: 0; }
+.th-status  { width: 90px;  text-align: center; flex-shrink: 0; }
 .th-qty     { width: 110px; text-align: center; flex-shrink: 0; }
 .th-action  { width: 44px;  flex-shrink: 0; }
 
@@ -839,6 +847,7 @@ $transition: 0.15s ease;
 .td-image   { width: 64px;  flex-shrink: 0; justify-content: center; }
 .td-details { flex: 1; flex-direction: column; align-items: flex-start; min-width: 0; }
 .td-avail   { width: 120px; flex-direction: column; align-items: center; flex-shrink: 0; }
+.td-status  { width: 90px;  justify-content: center; flex-shrink: 0; }
 .td-qty     { width: 110px; justify-content: center; flex-shrink: 0; }
 .td-action  { width: 44px;  justify-content: center; flex-shrink: 0; }
 
@@ -899,6 +908,14 @@ $transition: 0.15s ease;
     color: $red;
     margin-top: 2px;
     svg { flex-shrink: 0; }
+}
+.status-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: $gray-700;
+    padding: 4px 8px;
+    border-radius: $radius-sm;
+    background: $gray-100;
 }
 
 .qty-input {
