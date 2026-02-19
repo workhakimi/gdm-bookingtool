@@ -1,6 +1,6 @@
 <template>
   <div class="inv-booking-cart" :style="rootStyle">
-    <!-- Cart: left | Actions: right (CSS Grid enforces layout) -->
+    <!-- Cart: left 70% | Actions: right 20% | gap 5px -->
     <div class="inv-booking-cart__left">
       <div class="inv-booking-cart__header">
         <h2 class="inv-booking-cart__title">Booking Cart</h2>
@@ -560,9 +560,9 @@ export default {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: var(--inv-text-color);
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  grid-template-areas: 'cart actions';
+  display: flex;
+  flex-direction: row;
+  column-gap: 5px;
   width: 100%;
   max-width: 900px;
   min-height: 320px;
@@ -574,11 +574,11 @@ export default {
 }
 
 .inv-booking-cart__left {
-  grid-area: cart;
+  width: 70%;
   min-width: 0;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e2e8f0;
 }
 
 .inv-booking-cart__header {
@@ -806,8 +806,9 @@ export default {
 }
 
 .inv-booking-cart__right {
-  grid-area: actions;
+  width: 20%;
   min-width: 0;
+  flex-shrink: 0;
   background: #f8fafc;
 }
 
