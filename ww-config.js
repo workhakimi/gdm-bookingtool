@@ -1,7 +1,7 @@
 /**
- * Inventory Booking Cart – Cart of SKUs with quantity inputs, manual SKU add,
- * booking title/PIC, edit existing booking, proceed/overbooking, emit On Booked.
- * Bindable: reference data, cart data, teammates, buffer, Booking_Headers, Booking_Items.
+ * Inventory Booking Cart – Two-panel cart with Connect/Disconnect for existing
+ * booking, Quick Add SKU, Confirm / Proceed (Overbooked).
+ * Events: On Booking, On Overbooking, On Remove From Cart only.
  */
 
 export default {
@@ -15,11 +15,10 @@ export default {
       'buffer',
       'bookingHeaders',
       'bookingItems',
-      'editingHeaderId',
       'bookingTitlePlaceholder',
       'picPlaceholder',
-      'manualSkuPlaceholder',
-      'proceedButtonText',
+      'quickAddPlaceholder',
+      'confirmButtonText',
       'proceedOverbookingText',
     ],
     customStylePropertiesOrder: [
@@ -33,55 +32,8 @@ export default {
   },
   triggerEvents: [
     {
-      name: 'manualAddSku',
-      label: { en: 'On Manual Add SKU' },
-      event: {
-        value: {
-          SKU: '',
-          Model: '',
-          Color: '',
-          SNT: 0,
-          ImageLink: '',
-          Type: '',
-          Size: '',
-          Tags: '',
-        },
-      },
-      getTestEvent: 'getManualAddSkuTestEvent',
-    },
-    {
-      name: 'removeFromCart',
-      label: { en: 'On Remove From Cart' },
-      event: { cart: [] },
-      getTestEvent: 'getCartUpdateTestEvent',
-    },
-    {
-      name: 'qtyChange',
-      label: { en: 'On Quantity Change' },
-      event: { cart: [] },
-      getTestEvent: 'getCartUpdateTestEvent',
-    },
-    {
-      name: 'reorderCart',
-      label: { en: 'On Reorder Cart' },
-      event: { cart: [] },
-      getTestEvent: 'getCartUpdateTestEvent',
-    },
-    {
-      name: 'loadBooking',
-      label: { en: 'On Load Booking (Edit)' },
-      event: {
-        headerId: '',
-        bookingNumber: '',
-        bookingTitle: '',
-        picId: '',
-        cart: [],
-      },
-      getTestEvent: 'getLoadBookingTestEvent',
-    },
-    {
       name: 'booked',
-      label: { en: 'On Booked' },
+      label: { en: 'On Booking' },
       event: {
         value: {
           isEdit: false,
@@ -95,6 +47,18 @@ export default {
       },
       getTestEvent: 'getBookedTestEvent',
       default: true,
+    },
+    {
+      name: 'overbooking',
+      label: { en: 'On Overbooking' },
+      event: { value: { overbooked: true } },
+      getTestEvent: 'getOverbookingTestEvent',
+    },
+    {
+      name: 'removeFromCart',
+      label: { en: 'On Remove From Cart' },
+      event: { cart: [] },
+      getTestEvent: 'getCartUpdateTestEvent',
     },
   ],
   properties: {
@@ -120,7 +84,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'array',
-        tooltip: 'Variable: list of { SKU, Quantity }. Updated via On Remove / On Quantity Change / On Reorder / On Load Booking.',
+        tooltip: 'Variable: list of { SKU, Quantity }. Updated via On Remove From Cart; also add from inventory list.',
       },
       /* wwEditor:end */
     },
@@ -133,7 +97,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'array',
-        tooltip: 'Teammates collection (id, Name). Used for PIC dropdown and edit booking display.',
+        tooltip: 'Teammates collection (id, Name). Used for Person In Charge dropdown.',
       },
       /* wwEditor:end */
     },
@@ -146,7 +110,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
-        tooltip: 'If on, available quantity = SNT - 25 from reference.',
+        tooltip: 'If on, available quantity = SNT - 25 from reference. No UI toggle.',
       },
       /* wwEditor:end */
     },
@@ -159,7 +123,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'array',
-        tooltip: 'Booking_Headers (id, BookingNumber, BookingTitle, PIC_ID, created_at).',
+        tooltip: 'Booking_Headers (id, BookingNumber, BookingTitle, PIC_ID). For Existing Booking dropdown.',
       },
       /* wwEditor:end */
     },
@@ -172,20 +136,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'array',
-        tooltip: 'Booking_Items (id, HeaderID, SKU, Quantity). Used to load booking when editing.',
-      },
-      /* wwEditor:end */
-    },
-    editingHeaderId: {
-      label: { en: 'Editing booking (Header ID)' },
-      type: 'Text',
-      section: 'settings',
-      defaultValue: '',
-      bindable: true,
-      /* wwEditor:start */
-      bindingValidation: {
-        type: 'string',
-        tooltip: 'UUID of Booking_Header when editing. Set by workflow on On Load Booking; clear for new booking.',
+        tooltip: 'Booking_Items (id, HeaderID, SKU, Quantity). Loaded when Connect is clicked.',
       },
       /* wwEditor:end */
     },
@@ -193,38 +144,38 @@ export default {
       label: { en: 'Booking title placeholder' },
       type: 'Text',
       section: 'settings',
-      defaultValue: 'Booking title',
+      defaultValue: 'e.g. Q4 Internal Event',
     },
     picPlaceholder: {
-      label: { en: 'PIC placeholder' },
+      label: { en: 'Person In Charge placeholder' },
       type: 'Text',
       section: 'settings',
-      defaultValue: 'Select PIC',
+      defaultValue: 'Select Teammate...',
     },
-    manualSkuPlaceholder: {
-      label: { en: 'Manual SKU input placeholder' },
+    quickAddPlaceholder: {
+      label: { en: 'Quick Add SKU placeholder' },
       type: 'Text',
       section: 'settings',
-      defaultValue: 'Add SKU by code, press Enter',
+      defaultValue: 'Scan or type SKU...',
     },
-    proceedButtonText: {
-      label: { en: 'Proceed button text' },
+    confirmButtonText: {
+      label: { en: 'Confirm button text' },
       type: 'Text',
       section: 'settings',
-      defaultValue: 'Proceed',
+      defaultValue: 'Confirm Booking',
     },
     proceedOverbookingText: {
       label: { en: 'Proceed overbooking text' },
       type: 'Text',
       section: 'settings',
-      defaultValue: 'Proceed Overbooking',
+      defaultValue: 'Proceed (Overbooked)',
     },
     // —— Style ——
     fontSize: {
       label: { en: 'Font size' },
       type: 'Number',
       section: 'style',
-      defaultValue: 14,
+      defaultValue: 12,
       options: { min: 10, max: 24, step: 1 },
       bindable: true,
     },
