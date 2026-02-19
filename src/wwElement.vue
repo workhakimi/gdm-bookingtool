@@ -1,5 +1,5 @@
 <template>
-    <div class="inventory-booking-cart">
+    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending }">
         <!-- ═══════════ LEFT PANEL ═══════════ -->
         <div class="left-panel">
             <div class="cart-header">
@@ -12,7 +12,7 @@
                     <button
                         type="button"
                         class="btn-empty-cart"
-                        :disabled="itemCount === 0"
+                        :disabled="itemCount === 0 || isSending"
                         @click="emptyCart"
                     >
                         Empty Cart
@@ -94,13 +94,14 @@
                                 :class="{ 'is-over': item.isOverLimit }"
                                 :value="item.quantity"
                                 min="0"
+                                :disabled="isSending"
                                 @change="updateQuantity(idx, $event.target.value)"
                             />
                         </div>
 
                         <!-- Remove -->
                         <div class="td td-action">
-                            <button class="btn-remove" @click="removeItem(idx)">
+                            <button type="button" class="btn-remove" :disabled="isSending" @click="removeItem(idx)">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6" />
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -130,9 +131,10 @@
                 <div class="existing-booking-row">
                     <div class="custom-select" ref="bookingSelectEl">
                         <button
+                            type="button"
                             class="select-trigger"
                             :class="{ 'has-value': !!selectedBookingOption }"
-                            :disabled="isConnected"
+                            :disabled="isConnected || isSending"
                             @click="toggleBookingDropdown"
                         >
                             <span class="select-text">{{ bookingDropdownDisplay }}</span>
@@ -158,7 +160,7 @@
                             'btn-connect--linked': isConnected,
                             'btn-connect--ready': !isConnected && !!selectedBookingOption,
                         }"
-                        :disabled="!isConnected && !selectedBookingOption"
+                        :disabled="(!isConnected && !selectedBookingOption) || isSending"
                         @click="isConnected ? disconnectBooking() : connectBooking()"
                     >
                         <!-- Connected: disconnect icon -->
@@ -192,9 +194,10 @@
                         v-model="quickAddInput"
                         class="quick-add-input"
                         placeholder="Scan or type SKU..."
+                        :disabled="isSending"
                         @keyup.enter="quickAdd"
                     />
-                    <button class="btn-quick-add" @click="quickAdd" type="button">
+                    <button type="button" class="btn-quick-add" :disabled="isSending" @click="quickAdd">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="5" y1="12" x2="19" y2="12" />
                             <polyline points="12 5 19 12 12 19" />
@@ -218,6 +221,7 @@
                         v-model="bookingTitle"
                         class="icon-input"
                         placeholder="e.g. Q4 Internal Event"
+                        :disabled="isSending"
                     />
                 </div>
             </div>
@@ -227,8 +231,10 @@
                 <label class="rp-label">Person In Charge</label>
                 <div class="custom-select custom-select--icon" ref="picSelectEl">
                     <button
+                        type="button"
                         class="select-trigger"
                         :class="{ 'has-value': !!selectedPIC }"
+                        :disabled="isSending"
                         @click="togglePICDropdown"
                     >
                         <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -339,6 +345,7 @@ export default {
         const cartHeader = computed(() => cartDataObj.value?.Booking_Header || {});
         const cartItems = computed(() => cartDataObj.value?.Booking_Items || []);
         const stagingStatus = computed(() => cartDataObj.value?.StagingStatus ?? null);
+        const isSending = computed(() => stagingStatus.value === 'Sending');
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -491,6 +498,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
+            if (isSending.value) return;
 
             const qty = Math.max(0, parseInt(val) || 0);
             const item = cartItems.value[index];
@@ -506,6 +514,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
+            if (isSending.value) return;
 
             const item = cartItems.value[index];
             if (!item) return;
@@ -520,6 +529,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
+            if (isSending.value) return;
 
             const sku = quickAddInput.value.trim();
             if (!sku) return;
@@ -676,7 +686,7 @@ export default {
 
         // ── Dropdown helpers ──
         function toggleBookingDropdown() {
-            if (isConnected.value) return;
+            if (isSending.value || isConnected.value) return;
             bookingDropdownOpen.value = !bookingDropdownOpen.value;
             picDropdownOpen.value = false;
         }
@@ -685,6 +695,7 @@ export default {
             bookingDropdownOpen.value = false;
         }
         function togglePICDropdown() {
+            if (isSending.value) return;
             picDropdownOpen.value = !picDropdownOpen.value;
             bookingDropdownOpen.value = false;
         }
@@ -724,6 +735,11 @@ export default {
             bookingDropdownDisplay,
             picDropdownDisplay,
             isConnected,
+            stagingStatus,
+            isSending,
+            cartHeader,
+            successTeammateName,
+            formattedBookingTime,
             bookingTitle,
             selectedPIC,
             selectedBookingOption,
@@ -779,9 +795,16 @@ $transition: 0.15s ease;
     border: 1px solid $gray-200;
     border-radius: $radius;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
+    font-size: 12px;
     color: $gray-900;
     overflow: hidden;
+    &.is-sending .left-panel,
+    &.is-sending .right-panel {
+        pointer-events: none;
+    }
+    &.is-sending .btn-confirm {
+        pointer-events: auto;
+    }
 }
 
 /* ═══════════ LEFT PANEL ═══════════ */
@@ -800,14 +823,14 @@ $transition: 0.15s ease;
     margin-bottom: 20px;
 }
 .header-title {
-    font-size: 18px;
+    font-size: 12px;
     font-weight: 700;
     margin: 0;
     line-height: 1.3;
     color: $gray-900;
 }
 .header-subtitle {
-    font-size: 13px;
+    font-size: 12px;
     color: $gray-500;
     margin: 2px 0 0;
 }
@@ -819,7 +842,7 @@ $transition: 0.15s ease;
     white-space: nowrap;
 }
 .count-text {
-    font-size: 13px;
+    font-size: 12px;
     color: $gray-500;
     font-weight: 500;
 }
@@ -833,7 +856,7 @@ $transition: 0.15s ease;
     border: 1px solid $gray-200;
     border-radius: $radius-sm;
     cursor: pointer;
-    font-family: inherit;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     transition: color $transition, background $transition, border-color $transition;
     &:hover:not(:disabled) {
         color: $gray-700;
@@ -863,7 +886,7 @@ $transition: 0.15s ease;
     opacity: 0.5;
 }
 .empty-text {
-    font-size: 13px;
+    font-size: 12px;
     margin: 0;
 }
 
@@ -881,7 +904,7 @@ $transition: 0.15s ease;
     margin-bottom: 4px;
 }
 .th {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: $gray-400;
     letter-spacing: 0.05em;
@@ -933,7 +956,7 @@ $transition: 0.15s ease;
 
 .product-model {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     color: $gray-900;
     white-space: nowrap;
     overflow: hidden;
@@ -946,15 +969,15 @@ $transition: 0.15s ease;
     margin-top: 1px;
 }
 .product-sku {
-    font-size: 11px;
+    font-size: 12px;
     color: $gray-400;
     margin-top: 1px;
-    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     letter-spacing: 0.02em;
 }
 
 .avail-number {
-    font-size: 15px;
+    font-size: 12px;
     font-weight: 600;
     color: $gray-700;
 }
@@ -965,7 +988,7 @@ $transition: 0.15s ease;
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: $red;
     margin-top: 2px;
@@ -986,7 +1009,8 @@ $transition: 0.15s ease;
     border: 1.5px solid $gray-300;
     border-radius: $radius-sm;
     text-align: center;
-    font-size: 14px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
     font-weight: 500;
     color: $gray-900;
     background: $white;
@@ -1041,12 +1065,12 @@ $transition: 0.15s ease;
     gap: 6px;
 }
 .rp-label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: $gray-700;
 }
 .rp-label--caps {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: $gray-400;
     letter-spacing: 0.06em;
@@ -1076,8 +1100,8 @@ $transition: 0.15s ease;
     background: $white;
     cursor: pointer;
     transition: border-color $transition;
-    font-family: inherit;
-    font-size: 13px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
     color: $gray-400;
     text-align: left;
     gap: 6px;
@@ -1120,7 +1144,7 @@ $transition: 0.15s ease;
 }
 .select-option {
     padding: 8px 12px;
-    font-size: 13px;
+    font-size: 12px;
     color: $gray-700;
     cursor: pointer;
     transition: background $transition;
@@ -1203,11 +1227,11 @@ $transition: 0.15s ease;
     padding: 0 12px;
     border: 1.5px solid $gray-200;
     border-radius: $radius-sm;
-    font-size: 13px;
+    font-size: 12px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     color: $gray-900;
     background: $white;
     outline: none;
-    font-family: inherit;
     transition: border-color $transition;
     &::placeholder { color: $gray-400; }
     &:focus { border-color: $blue; }
@@ -1263,7 +1287,7 @@ $transition: 0.15s ease;
         margin: 0;
         background: transparent;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-        font-size: 13px !important;
+        font-size: 12px !important;
         font-weight: 400 !important;
         line-height: 1.4 !important;
         color: $gray-900 !important;
@@ -1273,7 +1297,7 @@ $transition: 0.15s ease;
         &::-webkit-input-placeholder,
         &::-moz-placeholder {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-            font-size: 13px !important;
+            font-size: 12px !important;
             font-weight: 400 !important;
             color: $gray-400;
         }
@@ -1290,11 +1314,11 @@ $transition: 0.15s ease;
     height: 46px;
     border: none;
     border-radius: $radius-sm;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: background $transition, opacity $transition;
-    font-family: inherit;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: $blue;
     color: $white;
     &:hover { background: $blue-dark; }
@@ -1309,10 +1333,10 @@ $transition: 0.15s ease;
         &:hover { background: $gray-200; }
     }
     &.btn-confirm--sending {
-        background: $gray-900;
+        background: #111827;
         color: $white;
         cursor: wait;
-        &:hover { background: $gray-900; }
+        &:hover { background: #111827; }
     }
     &.btn-confirm--success {
         background: #059669;
