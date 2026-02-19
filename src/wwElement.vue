@@ -543,19 +543,22 @@ export default {
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
-            internalCart.value = [];
+            internalCart.value.forEach(c => { c.quantity = 0; });
             bookingTitle.value = '';
             selectedPIC.value = null;
             selectedPICName.value = '';
             selectedBookingOption.value = null;
-            lastSyncedSkus.value = new Set();
 
             emit('trigger-event', {
                 name: 'loadBooking',
                 event: {
                     value: {
                         Booking_Header: { ...EMPTY_HEADER },
-                        Booking_Items: [],
+                        Booking_Items: internalCart.value.map(c => ({
+                            SKU: c.sku,
+                            Quantity: 0,
+                            Status: null,
+                        })),
                     },
                 },
             });
