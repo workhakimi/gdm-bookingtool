@@ -17,9 +17,10 @@ export default {
             {
                 label: 'Options',
                 isCollapsible: true,
-                properties: ['buffer'],
+                properties: ['buffer', 'disableInteractions'],
             },
         ],
+        customStylePropertiesOrder: [],
     },
     triggerEvents: [
         {
@@ -184,6 +185,19 @@ export default {
             bindingValidation: {
                 type: 'boolean',
                 tooltip: 'When on, available = SNT − 25. When off, available = SNT.',
+            },
+            /* wwEditor:end */
+        },
+        disableInteractions: {
+            label: { en: 'Disable interactions' },
+            type: 'OnOff',
+            section: 'settings',
+            bindable: true,
+            defaultValue: false,
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'boolean',
+                tooltip: 'When on, user cannot click buttons or change quantities.',
             },
             /* wwEditor:end */
         },
