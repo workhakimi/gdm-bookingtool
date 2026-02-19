@@ -1227,16 +1227,20 @@ $transition: 0.15s ease;
         padding: 0;
         margin: 0;
         background: transparent;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 13px;
-        font-weight: 400;
-        line-height: 1.4;
-        color: $gray-900;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        line-height: 1.4 !important;
+        color: $gray-900 !important;
         -webkit-appearance: none;
         appearance: none;
-        &::placeholder {
+        &::placeholder,
+        &::-webkit-input-placeholder,
+        &::-moz-placeholder {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            font-size: 13px !important;
+            font-weight: 400 !important;
             color: $gray-400;
-            font-weight: 400;
         }
     }
 }
