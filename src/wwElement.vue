@@ -1,164 +1,168 @@
 <template>
   <div class="inv-booking-cart" :style="rootStyle">
-    <!-- Manual add SKU -->
-    <div class="inv-booking-cart__section">
-      <label class="inv-booking-cart__label">Add SKU</label>
-      <div class="inv-booking-cart__manual-row">
-        <input
-          v-model="manualSkuInput"
-          type="text"
-          class="inv-booking-cart__input"
-          :placeholder="content.manualSkuPlaceholder || 'Add SKU by code, press Enter'"
-          :style="inputStyle"
-          @keydown.enter="onManualAddSku"
-        />
-        <span v-if="manualSkuError" class="inv-booking-cart__error">No Match Found</span>
-      </div>
-    </div>
+    <div class="inv-booking-cart__inner">
+      <!-- Manual add SKU -->
+      <section class="inv-booking-cart__card">
+        <h3 class="inv-booking-cart__card-title">Add SKU</h3>
+        <div class="inv-booking-cart__manual-row">
+          <input
+            v-model="manualSkuInput"
+            type="text"
+            class="inv-booking-cart__input inv-booking-cart__input--search"
+            :placeholder="content.manualSkuPlaceholder || 'Add SKU by code, press Enter'"
+            :style="inputStyle"
+            @keydown.enter="onManualAddSku"
+          />
+          <span v-if="manualSkuError" class="inv-booking-cart__error">No Match Found</span>
+        </div>
+      </section>
 
-    <!-- Cart list -->
-    <div class="inv-booking-cart__section">
-      <label class="inv-booking-cart__label">Cart</label>
-      <div v-if="!cartRows.length" class="inv-booking-cart__empty">Cart is empty. Add SKUs above or from the list.</div>
-      <div v-else class="inv-booking-cart__list">
-        <div
-          v-for="(row, index) in cartRows"
-          :key="row.sku + '-' + index"
-          class="inv-booking-cart__row"
-          :style="rowStyle"
-        >
-          <div class="inv-booking-cart__row-actions">
-            <button
-              type="button"
-              class="inv-booking-cart__btn-icon"
-              title="Move up"
-              :disabled="index === 0"
-              @click="moveCartItem(index, -1)"
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              class="inv-booking-cart__btn-icon"
-              title="Move down"
-              :disabled="index === cartRows.length - 1"
-              @click="moveCartItem(index, 1)"
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              class="inv-booking-cart__btn-icon inv-booking-cart__btn-remove"
-              title="Remove"
-              @click="removeFromCart(row.sku)"
-            >
-              ×
-            </button>
-          </div>
-          <div class="inv-booking-cart__row-img-wrap">
-            <img
-              v-if="row.ref && row.ref.ImageLink"
-              :src="row.ref.ImageLink"
-              :alt="row.ref.Model"
-              class="inv-booking-cart__row-img"
-            />
-            <div v-else class="inv-booking-cart__row-img-placeholder">No image</div>
-          </div>
-          <div class="inv-booking-cart__row-info">
-            <div class="inv-booking-cart__model">{{ row.ref ? row.ref.Model : '—' }}</div>
-            <div class="inv-booking-cart__color">{{ row.ref ? row.ref.Color : '—' }}</div>
-            <div class="inv-booking-cart__avail" :style="availStyle(row)">
-              {{ row.available }} Available
+      <!-- Cart list -->
+      <section class="inv-booking-cart__card">
+        <h3 class="inv-booking-cart__card-title">Booking cart</h3>
+        <div v-if="!cartRows.length" class="inv-booking-cart__empty">Cart is empty. Add SKUs above or from the inventory list.</div>
+        <div v-else class="inv-booking-cart__list">
+          <div
+            v-for="(row, index) in cartRows"
+            :key="row.sku + '-' + index"
+            class="inv-booking-cart__row"
+            :style="rowStyle"
+          >
+            <div class="inv-booking-cart__row-actions">
+              <button
+                type="button"
+                class="inv-booking-cart__btn-icon"
+                title="Move up"
+                :disabled="index === 0"
+                @click="moveCartItem(index, -1)"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                class="inv-booking-cart__btn-icon"
+                title="Move down"
+                :disabled="index === cartRows.length - 1"
+                @click="moveCartItem(index, 1)"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                class="inv-booking-cart__btn-icon inv-booking-cart__btn-remove"
+                title="Remove"
+                @click="removeFromCart(row.sku)"
+              >
+                ×
+              </button>
+            </div>
+            <div class="inv-booking-cart__row-img-wrap">
+              <img
+                v-if="row.ref && row.ref.ImageLink"
+                :src="row.ref.ImageLink"
+                :alt="row.ref.Model"
+                class="inv-booking-cart__row-img"
+              />
+              <div v-else class="inv-booking-cart__row-img-placeholder">No image</div>
+            </div>
+            <div class="inv-booking-cart__row-info">
+              <div class="inv-booking-cart__model">{{ row.ref ? row.ref.Model : '—' }}</div>
+              <div class="inv-booking-cart__color">{{ row.ref ? row.ref.Color : '—' }}</div>
+              <div class="inv-booking-cart__avail" :style="availStyle(row)">
+                {{ row.available }} Available
+              </div>
+            </div>
+            <div class="inv-booking-cart__qty-wrap">
+              <label class="inv-booking-cart__qty-label">Qty</label>
+              <input
+                :value="row.quantity"
+                type="number"
+                min="1"
+                class="inv-booking-cart__qty-input"
+                :style="inputStyle"
+                @input="onQtyInput(row.sku, $event)"
+              />
             </div>
           </div>
-          <div class="inv-booking-cart__qty-wrap">
-            <label class="inv-booking-cart__qty-label">Qty</label>
+        </div>
+      </section>
+
+      <!-- Booking form -->
+      <section class="inv-booking-cart__card">
+        <h3 class="inv-booking-cart__card-title">Booking details</h3>
+        <div class="inv-booking-cart__form">
+          <div class="inv-booking-cart__field">
+            <label class="inv-booking-cart__field-label">Title</label>
             <input
-              :value="row.quantity"
-              type="number"
-              min="1"
-              class="inv-booking-cart__qty-input"
+              v-model="bookingTitle"
+              type="text"
+              class="inv-booking-cart__input"
+              :placeholder="content.bookingTitlePlaceholder || 'Booking title'"
               :style="inputStyle"
-              @input="onQtyInput(row.sku, $event)"
             />
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Booking form -->
-    <div class="inv-booking-cart__section">
-      <label class="inv-booking-cart__label">Booking details</label>
-      <div class="inv-booking-cart__form">
-        <div class="inv-booking-cart__field">
-          <label class="inv-booking-cart__field-label">Title</label>
-          <input
-            v-model="bookingTitle"
-            type="text"
-            class="inv-booking-cart__input"
-            :placeholder="content.bookingTitlePlaceholder || 'Booking title'"
-            :style="inputStyle"
-          />
-        </div>
-        <div class="inv-booking-cart__field">
-          <label class="inv-booking-cart__field-label">PIC</label>
-          <select
-            v-model="bookingPicId"
-            class="inv-booking-cart__select"
-            :style="inputStyle"
-          >
-            <option value="">{{ content.picPlaceholder || 'Select PIC' }}</option>
-            <option
-              v-for="t in teammates"
-              :key="t.id"
-              :value="t.id"
+          <div class="inv-booking-cart__field">
+            <label class="inv-booking-cart__field-label">PIC</label>
+            <select
+              v-model="bookingPicId"
+              class="inv-booking-cart__select"
+              :style="inputStyle"
             >
-              {{ t.Name || t.name || '—' }}
-            </option>
-          </select>
+              <option value="">{{ content.picPlaceholder || 'Select PIC' }}</option>
+              <option
+                v-for="t in teammates"
+                :key="t.id"
+                :value="t.id"
+              >
+                {{ t.Name || t.name || '—' }}
+              </option>
+            </select>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <!-- Edit booking -->
-    <div class="inv-booking-cart__section">
-      <label class="inv-booking-cart__label">Edit existing booking</label>
-      <input
-        v-model="editBookingSearch"
-        type="text"
-        class="inv-booking-cart__input inv-booking-cart__search"
-        placeholder="Search by number, title, PIC..."
-        :style="inputStyle"
-      />
-      <select
-        :value="selectedEditHeaderId"
-        class="inv-booking-cart__select"
-        :style="inputStyle"
-        @change="onSelectEditBooking($event)"
-      >
-        <option value="">— New booking —</option>
-        <option
-          v-for="opt in filteredEditOptions"
-          :key="opt.id"
-          :value="opt.id"
+      <!-- Edit booking -->
+      <section class="inv-booking-cart__card">
+        <h3 class="inv-booking-cart__card-title">Edit existing booking</h3>
+        <input
+          v-model="editBookingSearch"
+          type="text"
+          class="inv-booking-cart__input inv-booking-cart__search"
+          placeholder="Search by number, title, PIC..."
+          :style="inputStyle"
+        />
+        <select
+          :value="selectedEditHeaderId"
+          class="inv-booking-cart__select"
+          :style="inputStyle"
+          @change="onSelectEditBooking($event)"
         >
-          {{ opt.display }}
-        </option>
-      </select>
-    </div>
+          <option value="">— New booking —</option>
+          <option
+            v-for="opt in filteredEditOptions"
+            :key="opt.id"
+            :value="opt.id"
+          >
+            {{ opt.display }}
+          </option>
+        </select>
+      </section>
 
-    <!-- Proceed -->
-    <div class="inv-booking-cart__section inv-booking-cart__proceed-wrap">
-      <button
-        type="button"
-        class="inv-booking-cart__btn-proceed"
-        :class="{ 'inv-booking-cart__btn-proceed--overbook': isOverbooking }"
-        :style="proceedButtonStyle"
-        :disabled="!canProceed"
-        @click="onProceed"
-      >
-        {{ proceedButtonText }}
-      </button>
+      <!-- Proceed -->
+      <section class="inv-booking-cart__card inv-booking-cart__card--action">
+        <button
+          type="button"
+          class="inv-booking-cart__btn-proceed"
+          :class="{ 'inv-booking-cart__btn-proceed--overbook': isOverbooking }"
+          :style="proceedButtonStyle"
+          :disabled="!canProceed"
+          @click="onProceed"
+        >
+          {{ proceedButtonText }}
+        </button>
+      </section>
+
+      <p class="inv-booking-cart__disclaimer">*Inventory availability subject to change until reserved.</p>
     </div>
   </div>
 </template>
@@ -177,13 +181,25 @@ function normalizeCollection(raw) {
 }
 
 function getSku(item) {
-  return (item && (item.SKU ?? item.sku)) ?? '';
+  if (item == null) return '';
+  if (typeof item === 'string') return item.trim();
+  return (item.SKU ?? item.sku) ?? '';
 }
 
 function getQty(item) {
-  const q = item?.Quantity ?? item?.quantity;
+  if (item == null) return 1;
+  if (typeof item === 'string') return 1;
+  const q = item.Quantity ?? item.quantity;
   const n = Number(q);
   return Number.isNaN(n) || n < 1 ? 1 : Math.floor(n);
+}
+
+/** Normalize cart for emit: always [{ SKU, Quantity }, ...] */
+function cartToEmit(items) {
+  return (items || []).map((item) => ({
+    SKU: getSku(item),
+    Quantity: getQty(item),
+  }));
 }
 
 export default {
@@ -327,10 +343,7 @@ export default {
     }
 
     function buildCart() {
-      return cartRaw.value.map((item) => ({
-        SKU: getSku(item),
-        Quantity: getQty(item),
-      }));
+      return cartToEmit(cartRaw.value);
     }
 
     function removeFromCart(sku) {
@@ -338,7 +351,7 @@ export default {
       if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
       /* wwEditor:end */
       const next = cartRaw.value.filter((item) => getSku(item) !== sku);
-      emit('trigger-event', { name: 'removeFromCart', event: { cart: next } });
+      emit('trigger-event', { name: 'removeFromCart', event: { cart: cartToEmit(next) } });
     }
 
     function onQtyInput(sku, ev) {
@@ -348,7 +361,7 @@ export default {
       const v = parseInt(ev.target.value, 10);
       const qty = Number.isNaN(v) || v < 1 ? 1 : v;
       const next = cartRaw.value.map((item) =>
-        getSku(item) === sku ? { ...item, Quantity: qty, quantity: qty } : item
+        getSku(item) === sku ? { SKU: getSku(item), Quantity: qty } : { SKU: getSku(item), Quantity: getQty(item) }
       );
       emit('trigger-event', { name: 'qtyChange', event: { cart: next } });
     }
@@ -357,7 +370,7 @@ export default {
       /* wwEditor:start */
       if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
       /* wwEditor:end */
-      const arr = [...cartRaw.value];
+      const arr = cartToEmit(cartRaw.value);
       const toIndex = fromIndex + delta;
       if (toIndex < 0 || toIndex >= arr.length) return;
       [arr[fromIndex], arr[toIndex]] = [arr[toIndex], arr[fromIndex]];
@@ -544,52 +557,78 @@ export default {
 .inv-booking-cart {
   font-size: var(--inv-font-size, 14px);
   color: var(--inv-text-color);
+  width: 100%;
+  max-width: 480px;
+  background: #f1f5f9;
+  padding: 1.25rem;
+  border-radius: var(--inv-radius);
+}
+
+.inv-booking-cart__inner {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  width: 100%;
-  max-width: 480px;
 }
 
-.inv-booking-cart__section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.inv-booking-cart__card {
+  background: var(--inv-cell-bg);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--inv-radius);
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.inv-booking-cart__label {
+.inv-booking-cart__card-title {
   font-family: 'Inter', sans-serif;
   font-weight: 600;
   font-size: 0.95em;
+  margin: 0 0 0.75rem 0;
+  color: var(--inv-text-color);
 }
 
 .inv-booking-cart__manual-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .inv-booking-cart__input {
   flex: 1;
-  padding: 8px 10px;
+  min-width: 0;
+  padding: 10px 12px;
   font-size: 1em;
   font-family: inherit;
-  color: inherit;
-  background: var(--inv-cell-bg);
+  color: var(--inv-text-color);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: border-color 0.15s;
+}
+
+.inv-booking-cart__input:focus {
+  outline: none;
+  border-color: var(--inv-btn-color);
+}
+
+.inv-booking-cart__input--search {
+  max-width: 100%;
 }
 
 .inv-booking-cart__error {
   color: #dc2626;
-  font-size: 0.9em;
+  font-size: 0.875em;
+  font-weight: 500;
 }
 
 .inv-booking-cart__empty {
-  padding: 1rem;
+  padding: 1.25rem;
   text-align: center;
   color: #64748b;
   font-size: 0.9em;
-  background: var(--inv-cell-bg);
-  border-radius: var(--inv-radius);
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px dashed #e2e8f0;
 }
 
 .inv-booking-cart__list {
@@ -602,8 +641,15 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem;
-  border: 1px solid var(--inv-input-border, #e2e8f0);
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  transition: border-color 0.15s;
+}
+
+.inv-booking-cart__row:hover {
+  border-color: #cbd5e1;
 }
 
 .inv-booking-cart__row-actions {
@@ -613,16 +659,22 @@ export default {
 }
 
 .inv-booking-cart__btn-icon {
-  width: 28px;
-  height: 24px;
+  width: 30px;
+  height: 26px;
   padding: 0;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
-  background: #f1f5f9;
+  background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   color: #64748b;
+  transition: background 0.15s, color 0.15s;
+}
+
+.inv-booking-cart__btn-icon:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: var(--inv-text-color);
 }
 
 .inv-booking-cart__btn-icon:disabled {
@@ -630,17 +682,19 @@ export default {
   cursor: not-allowed;
 }
 
-.inv-booking-cart__btn-remove {
+.inv-booking-cart__btn-remove:hover:not(:disabled) {
+  background: #fef2f2;
   color: #dc2626;
 }
 
 .inv-booking-cart__row-img-wrap {
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   flex-shrink: 0;
-  background: #f1f5f9;
-  border-radius: 6px;
+  background: #fff;
+  border-radius: 8px;
   overflow: hidden;
+  border: 1px solid #e2e8f0;
 }
 
 .inv-booking-cart__row-img {
@@ -657,6 +711,7 @@ export default {
   justify-content: center;
   font-size: 10px;
   color: #94a3b8;
+  background: #f1f5f9;
 }
 
 .inv-booking-cart__row-info {
@@ -672,76 +727,98 @@ export default {
 
 .inv-booking-cart__color {
   margin-top: 2px;
+  color: #475569;
 }
 
 .inv-booking-cart__avail {
   margin-top: 4px;
-  font-size: 0.9em;
+  font-size: 0.875em;
+  color: #64748b;
 }
 
 .inv-booking-cart__qty-wrap {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .inv-booking-cart__qty-label {
   font-size: 0.75em;
   color: #64748b;
+  font-weight: 500;
 }
 
 .inv-booking-cart__qty-input {
-  width: 64px;
-  padding: 6px 8px;
+  width: 72px;
+  padding: 8px 10px;
   font-size: 1em;
   font-family: inherit;
-  color: inherit;
-  background: var(--inv-cell-bg);
+  color: var(--inv-text-color);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
 }
 
 .inv-booking-cart__form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .inv-booking-cart__field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .inv-booking-cart__field-label {
   font-size: 0.85em;
   color: #64748b;
+  font-weight: 500;
 }
 
 .inv-booking-cart__select {
-  padding: 8px 10px;
+  width: 100%;
+  padding: 10px 12px;
   font-size: 1em;
   font-family: inherit;
-  color: inherit;
-  background: var(--inv-cell-bg);
+  color: var(--inv-text-color);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.inv-booking-cart__select:focus {
+  outline: none;
+  border-color: var(--inv-btn-color);
 }
 
 .inv-booking-cart__search {
-  margin-bottom: 4px;
+  margin-bottom: 0.5rem;
 }
 
-.inv-booking-cart__proceed-wrap {
-  margin-top: 0.5rem;
+.inv-booking-cart__card--action {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
 
 .inv-booking-cart__btn-proceed {
-  padding: 10px 20px;
+  width: 100%;
+  padding: 12px 24px;
   font-size: 1em;
   font-weight: 600;
   font-family: inherit;
   color: #fff;
+  background: var(--inv-btn-color);
   border: none;
-  border-radius: var(--inv-radius);
+  border-radius: 8px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.inv-booking-cart__btn-proceed:hover:not(:disabled) {
+  opacity: 0.95;
 }
 
 .inv-booking-cart__btn-proceed:disabled {
@@ -752,5 +829,16 @@ export default {
 .inv-booking-cart__btn-proceed--overbook {
   color: #fff !important;
   background: #dc2626 !important;
+}
+
+.inv-booking-cart__btn-proceed--overbook:hover:not(:disabled) {
+  background: #b91c1c !important;
+}
+
+.inv-booking-cart__disclaimer {
+  margin: 0;
+  font-size: 0.8em;
+  color: #94a3b8;
+  line-height: 1.4;
 }
 </style>
