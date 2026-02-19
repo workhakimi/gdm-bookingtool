@@ -12,7 +12,7 @@
                     <button
                         type="button"
                         class="btn-empty-cart"
-                        :disabled="itemCount === 0 || interactionsDisabled"
+                        :disabled="itemCount === 0"
                         @click="emptyCart"
                     >
                         Empty Cart
@@ -94,14 +94,13 @@
                                 :class="{ 'is-over': item.isOverLimit }"
                                 :value="item.quantity"
                                 min="0"
-                                :readonly="interactionsDisabled"
                                 @change="updateQuantity(idx, $event.target.value)"
                             />
                         </div>
 
                         <!-- Remove -->
                         <div class="td td-action">
-                            <button type="button" class="btn-remove" :disabled="interactionsDisabled" @click="removeItem(idx)">
+                            <button class="btn-remove" @click="removeItem(idx)">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6" />
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -133,7 +132,7 @@
                         <button
                             class="select-trigger"
                             :class="{ 'has-value': !!selectedBookingOption }"
-                            :disabled="isConnected || interactionsDisabled"
+                            :disabled="isConnected"
                             @click="toggleBookingDropdown"
                         >
                             <span class="select-text">{{ bookingDropdownDisplay }}</span>
@@ -154,13 +153,12 @@
                         </ul>
                     </div>
                     <button
-                        type="button"
                         class="btn-connect"
                         :class="{
                             'btn-connect--linked': isConnected,
                             'btn-connect--ready': !isConnected && !!selectedBookingOption,
                         }"
-                        :disabled="(!isConnected && !selectedBookingOption) || interactionsDisabled"
+                        :disabled="!isConnected && !selectedBookingOption"
                         @click="isConnected ? disconnectBooking() : connectBooking()"
                     >
                         <!-- Connected: disconnect icon -->
@@ -194,10 +192,9 @@
                         v-model="quickAddInput"
                         class="quick-add-input"
                         placeholder="Scan or type SKU..."
-                        :readonly="interactionsDisabled"
                         @keyup.enter="quickAdd"
                     />
-                    <button class="btn-quick-add" type="button" :disabled="interactionsDisabled" @click="quickAdd">
+                    <button class="btn-quick-add" @click="quickAdd" type="button">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="5" y1="12" x2="19" y2="12" />
                             <polyline points="12 5 19 12 12 19" />
@@ -221,7 +218,6 @@
                         v-model="bookingTitle"
                         class="icon-input"
                         placeholder="e.g. Q4 Internal Event"
-                        :readonly="interactionsDisabled"
                     />
                 </div>
             </div>
@@ -233,7 +229,6 @@
                     <button
                         class="select-trigger"
                         :class="{ 'has-value': !!selectedPIC }"
-                        :disabled="interactionsDisabled"
                         @click="togglePICDropdown"
                     >
                         <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -260,14 +255,14 @@
 
             <!-- Confirm -->
             <button
-                type="button"
                 class="btn-confirm"
                 :class="{
                     'btn-confirm--overbooked': hasOverbooking && canConfirm,
-                    'btn-confirm--disabled': !canConfirm || interactionsDisabled,
+                    'btn-confirm--disabled': !canConfirm,
                 }"
-                :disabled="!canConfirm || interactionsDisabled"
+                :disabled="!canConfirm"
                 @click="confirmBooking"
+                type="button"
             >
                 <!-- Overbooked warning icon -->
                 <svg v-if="hasOverbooking && canConfirm" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -350,7 +345,6 @@ export default {
         // ── Derived state from variable ──
         const isConnected = computed(() => !!cartHeader.value?.id);
         const connectedBookingNumber = computed(() => cartHeader.value?.BookingNumber || null);
-        const interactionsDisabled = computed(() => !!props.content?.disableInteractions);
 
         // ── Sync title / PIC from header when header ID changes ──
         watch(cartHeader, (header) => {
@@ -461,7 +455,7 @@ export default {
 
         function updateQuantity(index, val) {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             const qty = Math.max(0, parseInt(val) || 0);
@@ -476,7 +470,7 @@ export default {
 
         function removeItem(index) {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             const item = cartItems.value[index];
@@ -490,7 +484,7 @@ export default {
 
         function quickAdd() {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             const sku = quickAddInput.value.trim();
@@ -515,7 +509,7 @@ export default {
 
         function connectBooking() {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             if (!selectedBookingOption.value) return;
@@ -546,7 +540,7 @@ export default {
 
         function disconnectBooking() {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             emit('trigger-event', {
@@ -566,7 +560,7 @@ export default {
 
         function emptyCart() {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             const h = cartHeader.value || {};
@@ -575,11 +569,11 @@ export default {
                 event: {
                     value: {
                         Booking_Header: {
-                            id: h.id ?? null,
-                            BookingNumber: h.BookingNumber ?? null,
-                            created_at: h.created_at ?? null,
-                            BookingTitle: bookingTitle.value || h.BookingTitle ?? null,
-                            PIC_ID: selectedPIC.value ?? h.PIC_ID ?? null,
+                            id: h.id || null,
+                            BookingNumber: h.BookingNumber || null,
+                            created_at: h.created_at || null,
+                            BookingTitle: bookingTitle.value || h.BookingTitle || null,
+                            PIC_ID: selectedPIC.value || h.PIC_ID || null,
                         },
                         Booking_Items: [],
                     },
@@ -595,7 +589,7 @@ export default {
 
         function confirmBooking() {
             /* wwEditor:start */
-            if (props.wwEditorState?.isEditing || props.content?.disableInteractions) return;
+            if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
             if (!canConfirm.value) return;
@@ -691,7 +685,6 @@ export default {
             canConfirm,
             subtitle,
             itemCount,
-            interactionsDisabled,
             confirmLabel,
             bookingDropdownDisplay,
             picDropdownDisplay,

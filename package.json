@@ -1,13 +1,9 @@
 {
   "name": "ww-inventory-booking-cart",
   "version": "1.0.0",
-  "private": true,
   "scripts": {
     "build": "weweb build",
     "serve": "weweb serve"
-  },
-  "dependencies": {
-    "vue": "^3.x"
   },
   "devDependencies": {
     "@weweb/cli": "latest"
