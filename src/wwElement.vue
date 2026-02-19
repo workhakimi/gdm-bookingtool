@@ -272,6 +272,8 @@
 <script>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
+const EMPTY_HEADER = { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null };
+
 export default {
     props: {
         content: { type: Object, required: true },
@@ -286,9 +288,6 @@ export default {
         const referenceData = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.referenceData) || []
         );
-        const cartData = computed(() =>
-            wwLib.wwUtils.getDataFromCollection(props.content?.cartData) || []
-        );
         const resolvedBookingHeaders = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.bookingHeaders) || []
         );
@@ -299,13 +298,25 @@ export default {
             wwLib.wwUtils.getDataFromCollection(props.content?.teammatesList) || []
         );
 
+        // ── Resolve cartData as a structured object ──
+        const cartDataObj = computed(() => {
+            const raw = props.content?.cartData;
+            if (raw && typeof raw === 'object' && !Array.isArray(raw) && (raw.Booking_Header || raw.Booking_Items)) {
+                return raw;
+            }
+            const resolved = wwLib.wwUtils.getDataFromCollection(raw);
+            if (resolved && typeof resolved === 'object' && !Array.isArray(resolved)) {
+                return resolved;
+            }
+            return { Booking_Header: { ...EMPTY_HEADER }, Booking_Items: [] };
+        });
+        const cartHeader = computed(() => cartDataObj.value?.Booking_Header || {});
+        const cartItems = computed(() => cartDataObj.value?.Booking_Items || []);
+
         // ── Internal state ──
         const internalCart = ref([]);
-        const lastCartSnapshot = ref([]);
-
-        const isConnected = ref(false);
-        const connectedHeaderId = ref(null);
-        const connectedBookingNumber = ref(null);
+        const lastSyncedSkus = ref(new Set());
+        const lastSyncedHeaderId = ref(undefined);
 
         const bookingTitle = ref('');
         const selectedPIC = ref(null);
@@ -321,42 +332,61 @@ export default {
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
 
-        function normalizeCartItem(raw) {
-            if (typeof raw === 'string') return { sku: raw, quantity: 1 };
-            return { sku: raw.SKU || raw.sku, quantity: raw.Quantity || raw.quantity || 1 };
-        }
-        function cartItemSku(raw) {
-            return typeof raw === 'string' ? raw : (raw.SKU || raw.sku);
-        }
+        // ── Derived connected state (from cartData header) ──
+        const isConnected = computed(() => !!cartHeader.value?.id);
+        const connectedBookingNumber = computed(() => cartHeader.value?.BookingNumber || null);
 
-        // ── Sync cart from external cartData (when not connected) ──
-        watch(cartData, (newVal) => {
-            if (isConnected.value) return;
+        // ── Full sync when Booking_Header.id changes (connect / disconnect / init) ──
+        watch(cartHeader, (header) => {
+            const currentId = header?.id || null;
+            if (currentId === lastSyncedHeaderId.value) return;
 
-            const incoming = newVal || [];
-            const oldSkus = new Set(lastCartSnapshot.value.map(cartItemSku));
-            const newSkus = new Set(incoming.map(cartItemSku));
+            const items = cartItems.value || [];
+            internalCart.value = items.map(i => ({
+                sku: i.SKU,
+                quantity: i.Quantity != null ? i.Quantity : 0,
+            }));
+            lastSyncedSkus.value = new Set(items.map(i => i.SKU));
 
-            const addedItems = incoming.filter(i => !oldSkus.has(cartItemSku(i)));
-            const removedSkuSet = new Set(
-                lastCartSnapshot.value.filter(i => !newSkus.has(cartItemSku(i))).map(cartItemSku)
-            );
+            bookingTitle.value = header?.BookingTitle || '';
+            if (header?.PIC_ID) {
+                selectedPIC.value = header.PIC_ID;
+                const tm = resolvedTeammates.value.find(t => t.id === header.PIC_ID);
+                selectedPICName.value = tm ? tm.Name : '';
+            } else {
+                selectedPIC.value = null;
+                selectedPICName.value = '';
+            }
 
-            for (const item of addedItems) {
-                const norm = normalizeCartItem(item);
-                if (!internalCart.value.find(c => c.sku === norm.sku)) {
-                    internalCart.value.push(norm);
+            selectedBookingOption.value = (currentId && header?.BookingNumber) ? { ...header } : null;
+            lastSyncedHeaderId.value = currentId;
+        }, { immediate: true, deep: true });
+
+        // ── Incremental sync when Booking_Items changes (add from inventory) ──
+        watch(cartItems, (incoming) => {
+            const items = incoming || [];
+            const newSkuSet = new Set(items.map(i => i.SKU));
+            const oldSkuSet = lastSyncedSkus.value;
+
+            for (const item of items) {
+                if (!oldSkuSet.has(item.SKU) && !internalCart.value.find(c => c.sku === item.SKU)) {
+                    internalCart.value.push({
+                        sku: item.SKU,
+                        quantity: item.Quantity != null ? item.Quantity : 0,
+                    });
                 }
             }
 
-            if (removedSkuSet.size > 0) {
-                internalCart.value = internalCart.value.filter(c => !removedSkuSet.has(c.sku));
+            const removedSkus = [...oldSkuSet].filter(s => !newSkuSet.has(s));
+            if (removedSkus.length > 0) {
+                const removedSet = new Set(removedSkus);
+                internalCart.value = internalCart.value.filter(c => !removedSet.has(c.sku));
             }
 
-            lastCartSnapshot.value = [...incoming];
-        }, { immediate: true, deep: true });
+            lastSyncedSkus.value = newSkuSet;
+        }, { deep: true });
 
-        // ── Build reference lookup ──
+        // ── Reference data lookup ──
         const refLookup = computed(() => {
             const map = {};
             referenceData.value.forEach(r => { map[r.SKU] = r; });
@@ -411,6 +441,24 @@ export default {
             selectedPICName.value || 'Select Teammate...'
         );
 
+        // ── Helper: build the full variable snapshot ──
+        function buildCartVariable() {
+            return {
+                Booking_Header: {
+                    id: cartHeader.value?.id || null,
+                    BookingNumber: cartHeader.value?.BookingNumber || null,
+                    created_at: cartHeader.value?.created_at || null,
+                    BookingTitle: bookingTitle.value || null,
+                    PIC_ID: selectedPIC.value || null,
+                },
+                Booking_Items: internalCart.value.map(c => ({
+                    SKU: c.sku,
+                    Quantity: c.quantity,
+                    Status: null,
+                })),
+            };
+        }
+
         // ── Cart actions ──
         function updateQuantity(index, val) {
             const qty = Math.max(0, parseInt(val) || 0);
@@ -423,11 +471,10 @@ export default {
             /* wwEditor:end */
 
             internalCart.value.splice(index, 1);
-
-            if (!isConnected.value) {
-                const payload = internalCart.value.map(c => ({ SKU: c.sku, Quantity: c.quantity }));
-                emit('trigger-event', { name: 'removeFromCart', event: { cart: payload } });
-            }
+            emit('trigger-event', {
+                name: 'removeFromCart',
+                event: { value: buildCartVariable() },
+            });
         }
 
         // ── Quick Add ──
@@ -458,7 +505,7 @@ export default {
             quickAddError.value = '';
         }
 
-        // ── Existing Booking (connect / disconnect) ──
+        // ── Connect existing booking ──
         function connectBooking() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
@@ -467,20 +514,7 @@ export default {
             if (!selectedBookingOption.value) return;
 
             const header = selectedBookingOption.value;
-            connectedHeaderId.value = header.id;
-            connectedBookingNumber.value = header.BookingNumber;
-            isConnected.value = true;
-
             const items = bookingItemsData.value.filter(i => i.HeaderID === header.id);
-            internalCart.value = items.map(i => ({ sku: i.SKU, quantity: i.Quantity || 1 }));
-
-            bookingTitle.value = header.BookingTitle || '';
-
-            if (header.PIC_ID) {
-                selectedPIC.value = header.PIC_ID;
-                const tm = resolvedTeammates.value.find(t => t.id === header.PIC_ID);
-                selectedPICName.value = tm ? tm.Name : '';
-            }
 
             emit('trigger-event', {
                 name: 'loadBooking',
@@ -503,21 +537,28 @@ export default {
             });
         }
 
+        // ── Disconnect ──
         function disconnectBooking() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
-            isConnected.value = false;
-            connectedHeaderId.value = null;
-            connectedBookingNumber.value = null;
             internalCart.value = [];
             bookingTitle.value = '';
             selectedPIC.value = null;
             selectedPICName.value = '';
             selectedBookingOption.value = null;
+            lastSyncedSkus.value = new Set();
 
-            lastCartSnapshot.value = [...(cartData.value || [])];
+            emit('trigger-event', {
+                name: 'loadBooking',
+                event: {
+                    value: {
+                        Booking_Header: { ...EMPTY_HEADER },
+                        Booking_Items: [],
+                    },
+                },
+            });
         }
 
         // ── Confirm booking ──
@@ -529,7 +570,6 @@ export default {
             if (!canConfirm.value) return;
 
             const now = new Date().toISOString();
-            const items = internalCart.value.map(c => ({ SKU: c.sku, Quantity: c.quantity }));
 
             if (hasOverbooking.value) {
                 emit('trigger-event', {
@@ -543,12 +583,17 @@ export default {
                 event: {
                     value: {
                         isEdit: isConnected.value,
-                        headerId: connectedHeaderId.value,
-                        BookingNumber: connectedBookingNumber.value,
-                        BookingTitle: bookingTitle.value,
-                        Booking_Items: items,
-                        pic_uuid: selectedPIC.value,
-                        created_at: isConnected.value ? null : now,
+                        Booking_Header: {
+                            id: cartHeader.value?.id || null,
+                            BookingNumber: connectedBookingNumber.value,
+                            created_at: isConnected.value ? (cartHeader.value?.created_at || null) : now,
+                            BookingTitle: bookingTitle.value,
+                            PIC_ID: selectedPIC.value,
+                        },
+                        Booking_Items: internalCart.value.map(c => ({
+                            SKU: c.sku,
+                            Quantity: c.quantity,
+                        })),
                         updated_at: now,
                     },
                 },

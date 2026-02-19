@@ -26,7 +26,10 @@ export default {
             name: 'removeFromCart',
             label: { en: 'On Remove From Cart' },
             event: {
-                cart: [],
+                value: {
+                    Booking_Header: { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null },
+                    Booking_Items: [],
+                },
             },
             default: false,
         },
@@ -63,12 +66,8 @@ export default {
             event: {
                 value: {
                     isEdit: false,
-                    headerId: null,
-                    BookingNumber: null,
-                    BookingTitle: null,
+                    Booking_Header: { id: null, BookingNumber: null, created_at: null, BookingTitle: null, PIC_ID: null },
                     Booking_Items: [],
-                    pic_uuid: null,
-                    created_at: null,
                     updated_at: null,
                 },
             },
@@ -94,11 +93,11 @@ export default {
             type: 'ObjectList',
             section: 'settings',
             bindable: true,
-            defaultValue: [],
+            defaultValue: null,
             /* wwEditor:start */
             bindingValidation: {
-                type: 'array',
-                tooltip: 'Array of { SKU, Quantity }',
+                type: 'object',
+                tooltip: '{ Booking_Header: { id, BookingNumber, created_at, BookingTitle, PIC_ID }, Booking_Items: [{ SKU, Quantity, Status }] }',
             },
             /* wwEditor:end */
         },
