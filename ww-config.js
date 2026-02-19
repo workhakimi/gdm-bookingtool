@@ -39,6 +39,25 @@ export default {
             default: false,
         },
         {
+            name: 'loadBooking',
+            label: { en: 'On Load Booking' },
+            event: {
+                value: {
+                    Booking_Header: {
+                        id: null,
+                        BookingNumber: null,
+                        created_at: null,
+                        BookingTitle: null,
+                        PIC_ID: null,
+                    },
+                    Booking_Items: [
+                        { SKU: null, Quantity: null, Status: null },
+                    ],
+                },
+            },
+            default: false,
+        },
+        {
             name: 'booking',
             label: { en: 'On Booking' },
             event: {
@@ -47,7 +66,7 @@ export default {
                     headerId: null,
                     BookingNumber: null,
                     BookingTitle: null,
-                    BookingItems: [],
+                    Booking_Items: [],
                     pic_uuid: null,
                     created_at: null,
                     updated_at: null,

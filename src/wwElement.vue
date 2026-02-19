@@ -321,22 +321,31 @@ export default {
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
 
+        function normalizeCartItem(raw) {
+            if (typeof raw === 'string') return { sku: raw, quantity: 1 };
+            return { sku: raw.SKU || raw.sku, quantity: raw.Quantity || raw.quantity || 1 };
+        }
+        function cartItemSku(raw) {
+            return typeof raw === 'string' ? raw : (raw.SKU || raw.sku);
+        }
+
         // ── Sync cart from external cartData (when not connected) ──
         watch(cartData, (newVal) => {
             if (isConnected.value) return;
 
             const incoming = newVal || [];
-            const oldSkus = new Set(lastCartSnapshot.value.map(i => i.SKU));
-            const newSkus = new Set(incoming.map(i => i.SKU));
+            const oldSkus = new Set(lastCartSnapshot.value.map(cartItemSku));
+            const newSkus = new Set(incoming.map(cartItemSku));
 
-            const addedItems = incoming.filter(i => !oldSkus.has(i.SKU));
+            const addedItems = incoming.filter(i => !oldSkus.has(cartItemSku(i)));
             const removedSkuSet = new Set(
-                lastCartSnapshot.value.filter(i => !newSkus.has(i.SKU)).map(i => i.SKU)
+                lastCartSnapshot.value.filter(i => !newSkus.has(cartItemSku(i))).map(cartItemSku)
             );
 
             for (const item of addedItems) {
-                if (!internalCart.value.find(c => c.sku === item.SKU)) {
-                    internalCart.value.push({ sku: item.SKU, quantity: item.Quantity || 1 });
+                const norm = normalizeCartItem(item);
+                if (!internalCart.value.find(c => c.sku === norm.sku)) {
+                    internalCart.value.push(norm);
                 }
             }
 
@@ -472,6 +481,26 @@ export default {
                 const tm = resolvedTeammates.value.find(t => t.id === header.PIC_ID);
                 selectedPICName.value = tm ? tm.Name : '';
             }
+
+            emit('trigger-event', {
+                name: 'loadBooking',
+                event: {
+                    value: {
+                        Booking_Header: {
+                            id: header.id,
+                            BookingNumber: header.BookingNumber,
+                            created_at: header.created_at,
+                            BookingTitle: header.BookingTitle,
+                            PIC_ID: header.PIC_ID,
+                        },
+                        Booking_Items: items.map(i => ({
+                            SKU: i.SKU,
+                            Quantity: i.Quantity,
+                            Status: i.Status,
+                        })),
+                    },
+                },
+            });
         }
 
         function disconnectBooking() {
@@ -517,7 +546,7 @@ export default {
                         headerId: connectedHeaderId.value,
                         BookingNumber: connectedBookingNumber.value,
                         BookingTitle: bookingTitle.value,
-                        BookingItems: items,
+                        Booking_Items: items,
                         pic_uuid: selectedPIC.value,
                         created_at: isConnected.value ? null : now,
                         updated_at: now,
