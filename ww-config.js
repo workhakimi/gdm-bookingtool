@@ -150,7 +150,7 @@ export default {
       label: { en: 'Person In Charge placeholder' },
       type: 'Text',
       section: 'settings',
-      defaultValue: 'Select Teammate...',
+      defaultValue: 'Select Teammate.....',
     },
     quickAddPlaceholder: {
       label: { en: 'Quick Add SKU placeholder' },

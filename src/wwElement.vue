@@ -43,12 +43,11 @@
               </td>
               <td class="inv-booking-cart__td inv-booking-cart__td--details">
                 <div class="inv-booking-cart__model">{{ productModel(row) }}</div>
-                <div v-if="productSize(row)" class="inv-booking-cart__size-line">{{ productSize(row) }}</div>
                 <div class="inv-booking-cart__color-size">{{ productColorSize(row) }}</div>
                 <div class="inv-booking-cart__sku">{{ row.sku }}</div>
               </td>
               <td class="inv-booking-cart__td inv-booking-cart__td--avail">
-                <span class="inv-booking-cart__avail-badge" :class="{ 'inv-booking-cart__avail-badge--zero': row.available <= 0 }">{{ row.available }}</span>
+                <span class="inv-booking-cart__avail-num" :class="{ 'inv-booking-cart__avail-num--zero': row.available <= 0 }">{{ row.available }}</span>
               </td>
               <td class="inv-booking-cart__td inv-booking-cart__td--qty">
                 <input
@@ -99,7 +98,6 @@
                 {{ opt.display }}
               </option>
             </select>
-            <span class="inv-booking-cart__dropdown-icon">⋮</span>
             <template v-if="!connectedHeaderId">
               <button
                 type="button"
@@ -125,7 +123,12 @@
         </section>
 
         <section class="inv-booking-cart__block">
-          <h3 class="inv-booking-cart__block-title">QUICK ADD SKU</h3>
+          <h3 class="inv-booking-cart__block-title inv-booking-cart__block-title--with-action">
+            <button type="button" class="inv-booking-cart__btn-clear-quick" title="Clear" @click="clearQuickAdd" aria-label="Clear quick add">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            QUICK ADD SKU
+          </h3>
           <div class="inv-booking-cart__quick-add-row">
             <input
               v-model="quickAddSku"
@@ -171,7 +174,7 @@
             class="inv-booking-cart__select"
             :style="inputStyle"
           >
-            <option value="">{{ content.picPlaceholder || 'Select Teammate...' }}</option>
+            <option value="">{{ content.picPlaceholder || 'Select Teammate.....' }}</option>
             <option
               v-for="t in teammates"
               :key="t.id"
@@ -395,6 +398,11 @@ export default {
       selectedBookingId.value = '';
     }
 
+    function clearQuickAdd() {
+      quickAddSku.value = '';
+      quickAddError.value = false;
+    }
+
     function onQuickAddSku() {
       /* wwEditor:start */
       if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
@@ -478,6 +486,7 @@ export default {
       cartSubtitle,
       onConnect,
       onDisconnect,
+      clearQuickAdd,
       onQuickAddSku,
       removeFromCart,
       onQtyInput,
@@ -487,9 +496,6 @@ export default {
   computed: {
     productModel() {
       return (row) => (row.ref ? (row.ref.Model || '—') : 'Unknown Item');
-    },
-    productSize() {
-      return (row) => (row.ref ? (row.ref.Size || row.ref.size || '') : '—');
     },
     productColorSize() {
       return (row) => {
@@ -518,6 +524,7 @@ export default {
     },
     proceedButtonStyle() {
       const c = this.content;
+      if (!this.canProceed) return { backgroundColor: '#e2e8f0', color: '#94a3b8' };
       if (this.isOverbooking) return { backgroundColor: '#dc2626', color: '#fff' };
       return { backgroundColor: 'var(--inv-btn-color)', color: '#fff' };
     },
@@ -554,9 +561,12 @@ export default {
   font-size: 12px;
   color: var(--inv-text-color);
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   width: 100%;
   max-width: 900px;
   min-height: 320px;
+  min-width: 600px;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -702,18 +712,12 @@ export default {
 .inv-booking-cart__td--qty { width: 90px; }
 .inv-booking-cart__td--action { width: 44px; }
 
-.inv-booking-cart__avail-badge {
-  display: inline-block;
-  padding: 4px 10px;
+.inv-booking-cart__avail-num {
   font-size: 12px;
-  background: #f1f5f9;
-  border-radius: 6px;
-  min-width: 44px;
   text-align: right;
 }
 
-.inv-booking-cart__avail-badge--zero {
-  background: #fef2f2;
+.inv-booking-cart__avail-num--zero {
   color: #dc2626;
 }
 
@@ -757,12 +761,6 @@ export default {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   font-weight: 700;
-}
-
-.inv-booking-cart__size-line {
-  font-size: 12px;
-  color: var(--inv-text-color);
-  margin-top: 2px;
 }
 
 .inv-booking-cart__color-size {
@@ -835,6 +833,30 @@ export default {
   letter-spacing: 0.02em;
   color: #64748b;
   margin: 0;
+}
+
+.inv-booking-cart__block-title--with-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inv-booking-cart__btn-clear-quick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.inv-booking-cart__btn-clear-quick:hover {
+  color: #64748b;
+  background: #e2e8f0;
 }
 
 .inv-booking-cart__existing-row {
@@ -1020,13 +1042,6 @@ export default {
   padding-right: 28px;
 }
 
-.inv-booking-cart__dropdown-icon {
-  font-size: 14px;
-  color: #64748b;
-  margin-left: -24px;
-  pointer-events: none;
-}
-
 .inv-booking-cart__btn-confirm {
   display: inline-flex;
   align-items: center;
@@ -1048,7 +1063,6 @@ export default {
 }
 
 .inv-booking-cart__btn-confirm:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 
