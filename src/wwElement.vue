@@ -1,1076 +1,1136 @@
 <template>
-  <div class="inv-booking-cart" :style="rootStyle">
-    <!-- Cart: left 70% | Actions: right 20% | gap 5px -->
-    <div class="inv-booking-cart__left">
-      <div class="inv-booking-cart__header">
-        <h2 class="inv-booking-cart__title">Booking Cart</h2>
-        <p class="inv-booking-cart__subtitle">{{ cartSubtitle }}</p>
-        <span class="inv-booking-cart__count">{{ cartRows.length }} Items</span>
-      </div>
-      <div v-if="!cartRows.length" class="inv-booking-cart__empty">
-        <div class="inv-booking-cart__empty-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        </div>
-        <p class="inv-booking-cart__empty-text">Add items manually or from the list below</p>
-      </div>
-      <div v-else class="inv-booking-cart__table-wrap">
-        <table class="inv-booking-cart__table">
-          <thead>
-            <tr>
-              <th class="inv-booking-cart__th inv-booking-cart__th--img">IMAGE</th>
-              <th class="inv-booking-cart__th">PRODUCT DETAILS</th>
-              <th class="inv-booking-cart__th inv-booking-cart__th--avail">AVAILABILITY</th>
-              <th class="inv-booking-cart__th inv-booking-cart__th--qty">ORDER QTY</th>
-              <th class="inv-booking-cart__th inv-booking-cart__th--action"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(row, index) in cartRows"
-              :key="row.sku + '-' + index"
-              class="inv-booking-cart__tr"
-            >
-              <td class="inv-booking-cart__td inv-booking-cart__td--img">
-                <div class="inv-booking-cart__row-img-wrap">
-                  <img
-                    v-if="row.ref && row.ref.ImageLink"
-                    :src="row.ref.ImageLink"
-                    :alt="row.ref.Model"
-                    class="inv-booking-cart__row-img"
-                  />
-                  <div v-else class="inv-booking-cart__row-img-placeholder">No image</div>
+    <div class="inventory-booking-cart">
+        <!-- ═══════════ LEFT PANEL ═══════════ -->
+        <div class="left-panel">
+            <div class="cart-header">
+                <div class="header-info">
+                    <h2 class="header-title">Booking Cart</h2>
+                    <p class="header-subtitle">{{ subtitle }}</p>
                 </div>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--details">
-                <div class="inv-booking-cart__model">{{ productModel(row) }}</div>
-                <div class="inv-booking-cart__color-size">{{ productColorSize(row) }}</div>
-                <div class="inv-booking-cart__sku">{{ row.sku }}</div>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--avail">
-                <span class="inv-booking-cart__avail-num" :class="{ 'inv-booking-cart__avail-num--zero': row.available <= 0 }">{{ row.available }}</span>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--qty">
-                <input
-                  :value="row.quantity"
-                  type="number"
-                  min="1"
-                  class="inv-booking-cart__qty-input"
-                  :class="{ 'inv-booking-cart__qty-input--over': row.quantity > row.available }"
-                  :style="inputStyle"
-                  @input="onQtyInput(row.sku, $event)"
-                />
-                <p v-if="row.quantity > row.available" class="inv-booking-cart__over-limit">Over Limit</p>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--action">
-                <button
-                  type="button"
-                  class="inv-booking-cart__btn-trash"
-                  title="Remove from cart"
-                  @click="removeFromCart(row.sku)"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+                <div class="header-count">
+                    <span class="count-divider">|</span>
+                    <span class="count-text">{{ itemCount }} Items</span>
+                </div>
+            </div>
 
-    <!-- Right panel: Existing Booking, Quick Add, Details, Confirm -->
-    <div class="inv-booking-cart__right">
-      <div class="inv-booking-cart__right-inner">
-        <section class="inv-booking-cart__block">
-          <h3 class="inv-booking-cart__block-title">EXISTING BOOKING</h3>
-          <div class="inv-booking-cart__existing-row">
-            <select
-              ref="existingSelectRef"
-              v-model="selectedBookingId"
-              class="inv-booking-cart__select inv-booking-cart__select--existing"
-              :style="inputStyle"
-            >
-              <option value="">Select Booking ID...</option>
-              <option
-                v-for="opt in filteredEditOptions"
-                :key="opt.id"
-                :value="opt.id"
-              >
-                {{ opt.display }}
-              </option>
-            </select>
-            <template v-if="!connectedHeaderId">
-              <button
-                type="button"
-                class="inv-booking-cart__btn-connect"
-                title="Connect"
-                :disabled="!selectedBookingId"
-                @click="onConnect"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              </button>
-            </template>
-            <template v-else>
-              <button
-                type="button"
-                class="inv-booking-cart__btn-disconnect"
-                title="Disconnect"
-                @click="onDisconnect"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
-              </button>
-            </template>
-          </div>
-        </section>
+            <!-- Empty state -->
+            <div v-if="resolvedCart.length === 0" class="empty-state">
+                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1" />
+                    <circle cx="20" cy="21" r="1" />
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                </svg>
+                <p class="empty-text">Add items manually or from the list below</p>
+            </div>
 
-        <section class="inv-booking-cart__block">
-          <h3 class="inv-booking-cart__block-title inv-booking-cart__block-title--with-action">
-            <button type="button" class="inv-booking-cart__btn-clear-quick" title="Clear" @click="clearQuickAdd" aria-label="Clear quick add">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-            QUICK ADD SKU
-          </h3>
-          <div class="inv-booking-cart__quick-add-row">
-            <input
-              v-model="quickAddSku"
-              type="text"
-              class="inv-booking-cart__input"
-              :placeholder="content.quickAddPlaceholder || 'Scan or type SKU...'"
-              :style="inputStyle"
-              @keydown.enter="onQuickAddSku"
-            />
+            <!-- Cart table -->
+            <div v-else class="cart-table">
+                <div class="table-head">
+                    <span class="th th-image">IMAGE</span>
+                    <span class="th th-details">PRODUCT DETAILS</span>
+                    <span class="th th-avail">AVAILABILITY</span>
+                    <span class="th th-qty">ORDER QTY</span>
+                    <span class="th th-action"></span>
+                </div>
+                <div class="table-body">
+                    <div
+                        v-for="(item, idx) in resolvedCart"
+                        :key="item.sku"
+                        class="table-row"
+                    >
+                        <!-- Image -->
+                        <div class="td td-image">
+                            <img
+                                v-if="item.imageLink"
+                                :src="item.imageLink"
+                                :alt="item.model"
+                                class="product-img"
+                            />
+                            <div v-else class="product-img-placeholder">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- Product details -->
+                        <div class="td td-details">
+                            <div class="product-model">{{ item.model }}</div>
+                            <div class="product-variant">{{ item.color }} · {{ item.size }}</div>
+                            <div class="product-sku">{{ item.sku }}</div>
+                        </div>
+
+                        <!-- Availability -->
+                        <div class="td td-avail" :class="{ 'is-over': item.isOverLimit }">
+                            <span class="avail-number">{{ item.available }}</span>
+                            <span v-if="item.isOverLimit" class="over-limit-badge">
+                                <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.5 3.5a.5.5 0 0 1 1 0v4a.5.5 0 0 1-1 0v-4zm.5 7.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z" />
+                                </svg>
+                                Over Limit
+                            </span>
+                        </div>
+
+                        <!-- Order quantity -->
+                        <div class="td td-qty">
+                            <input
+                                type="number"
+                                class="qty-input"
+                                :class="{ 'is-over': item.isOverLimit }"
+                                :value="item.quantity"
+                                min="0"
+                                @input="updateQuantity(idx, $event.target.value)"
+                            />
+                        </div>
+
+                        <!-- Remove -->
+                        <div class="td td-action">
+                            <button class="btn-remove" @click="removeItem(idx)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════ DIVIDER ═══════════ -->
+        <div class="panel-divider"></div>
+
+        <!-- ═══════════ RIGHT PANEL ═══════════ -->
+        <div class="right-panel">
+            <!-- Existing Booking -->
+            <div class="rp-section">
+                <label class="rp-label rp-label--caps">
+                    <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                    EXISTING BOOKING
+                </label>
+                <div class="existing-booking-row">
+                    <div class="custom-select" ref="bookingSelectEl">
+                        <button
+                            class="select-trigger"
+                            :class="{ 'has-value': !!selectedBookingOption }"
+                            :disabled="isConnected"
+                            @click="toggleBookingDropdown"
+                        >
+                            <span class="select-text">{{ bookingDropdownDisplay }}</span>
+                            <span class="select-dots">···</span>
+                        </button>
+                        <ul v-if="bookingDropdownOpen" class="select-options">
+                            <li class="select-option select-option--placeholder" @mousedown.prevent="selectBooking(null)">
+                                Select Booking ID...
+                            </li>
+                            <li
+                                v-for="h in resolvedBookingHeaders"
+                                :key="h.id"
+                                class="select-option"
+                                @mousedown.prevent="selectBooking(h)"
+                            >
+                                {{ h.BookingNumber }} &bull; {{ h.BookingTitle }}
+                            </li>
+                        </ul>
+                    </div>
+                    <button
+                        class="btn-connect"
+                        :class="{
+                            'btn-connect--linked': isConnected,
+                            'btn-connect--ready': !isConnected && !!selectedBookingOption,
+                        }"
+                        :disabled="!isConnected && !selectedBookingOption"
+                        @click="isConnected ? disconnectBooking() : connectBooking()"
+                    >
+                        <!-- Connected: disconnect icon -->
+                        <svg v-if="isConnected" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M5.16 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.72-1.71" />
+                            <line x1="2" y1="2" x2="22" y2="22" />
+                        </svg>
+                        <!-- Not connected: chain link icon -->
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Add SKU -->
+            <div class="rp-section">
+                <label class="rp-label rp-label--caps">
+                    <button class="label-clear-btn" @click="clearQuickAdd" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                    QUICK ADD SKU
+                </label>
+                <div class="quick-add-row">
+                    <input
+                        v-model="quickAddInput"
+                        class="quick-add-input"
+                        placeholder="Scan or type SKU..."
+                        @keyup.enter="quickAdd"
+                    />
+                    <button class="btn-quick-add" @click="quickAdd" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                    </button>
+                </div>
+                <p v-if="quickAddError" class="quick-add-error">{{ quickAddError }}</p>
+            </div>
+
+            <!-- Booking Title -->
+            <div class="rp-section">
+                <label class="rp-label">Booking Title</label>
+                <div class="input-icon-wrap">
+                    <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                    <input
+                        v-model="bookingTitle"
+                        class="icon-input"
+                        placeholder="e.g. Q4 Internal Event"
+                    />
+                </div>
+            </div>
+
+            <!-- Person In Charge -->
+            <div class="rp-section">
+                <label class="rp-label">Person In Charge</label>
+                <div class="custom-select custom-select--icon" ref="picSelectEl">
+                    <button
+                        class="select-trigger"
+                        :class="{ 'has-value': !!selectedPIC }"
+                        @click="togglePICDropdown"
+                    >
+                        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span class="select-text">{{ picDropdownDisplay }}</span>
+                    </button>
+                    <ul v-if="picDropdownOpen" class="select-options">
+                        <li class="select-option select-option--placeholder" @mousedown.prevent="selectPIC(null)">
+                            Select Teammate...
+                        </li>
+                        <li
+                            v-for="t in resolvedTeammates"
+                            :key="t.id"
+                            class="select-option"
+                            @mousedown.prevent="selectPIC(t)"
+                        >
+                            {{ t.Name }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Confirm -->
             <button
-              type="button"
-              class="inv-booking-cart__btn-add-sku"
-              title="Add SKU"
-              @click="onQuickAddSku"
+                class="btn-confirm"
+                :class="{
+                    'btn-confirm--overbooked': hasOverbooking && canConfirm,
+                    'btn-confirm--disabled': !canConfirm,
+                }"
+                :disabled="!canConfirm"
+                @click="confirmBooking"
+                type="button"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                <!-- Overbooked warning icon -->
+                <svg v-if="hasOverbooking && canConfirm" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <!-- Normal clock/confirm icon -->
+                <svg v-else class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                {{ confirmLabel }}
             </button>
-          </div>
-          <p v-if="quickAddError" class="inv-booking-cart__error">No Match Found</p>
-        </section>
-
-        <section class="inv-booking-cart__block">
-          <label class="inv-booking-cart__field-label">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            Booking Title
-          </label>
-          <input
-            v-model="bookingTitle"
-            type="text"
-            class="inv-booking-cart__input"
-            :placeholder="content.bookingTitlePlaceholder || 'e.g. Q4 Internal Event'"
-            :style="inputStyle"
-          />
-        </section>
-
-        <section class="inv-booking-cart__block">
-          <label class="inv-booking-cart__field-label">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Person In Charge
-          </label>
-          <select
-            v-model="bookingPicId"
-            class="inv-booking-cart__select"
-            :style="inputStyle"
-          >
-            <option value="">{{ content.picPlaceholder || 'Select Teammate.....' }}</option>
-            <option
-              v-for="t in teammates"
-              :key="t.id"
-              :value="t.id"
-            >
-              {{ t.Name || t.name || '—' }}
-            </option>
-          </select>
-        </section>
-
-        <button
-          type="button"
-          class="inv-booking-cart__btn-confirm"
-          :class="{ 'inv-booking-cart__btn-confirm--overbook': isOverbooking }"
-          :style="proceedButtonStyle"
-          :disabled="!canProceed"
-          @click="onProceed"
-        >
-          <svg v-if="isOverbooking" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          {{ confirmButtonText }}
-        </button>
-        <p class="inv-booking-cart__disclaimer">*Stock reserved upon confirmation.</p>
-      </div>
+            <p class="disclaimer">*Stock reserved upon confirmation</p>
+        </div>
     </div>
-  </div>
 </template>
 
 <script>
-import { ref, computed, watch } from 'vue';
-
-function toKLTimestamp() {
-  return new Date().toISOString();
-}
-
-function normalizeCollection(raw) {
-  if (!raw) return [];
-  const arr = Array.isArray(raw) ? raw : [];
-  return arr.map((row) => (row && row.value != null ? row.value : row));
-}
-
-function getSku(item) {
-  if (item == null) return '';
-  if (typeof item === 'string') return item.trim();
-  return (item.SKU ?? item.sku) ?? '';
-}
-
-function getQty(item) {
-  if (item == null) return 1;
-  if (typeof item === 'string') return 1;
-  const q = item.Quantity ?? item.quantity;
-  const n = Number(q);
-  return Number.isNaN(n) || n < 1 ? 1 : Math.floor(n);
-}
-
-function cartToEmit(items) {
-  return (items || []).map((item) => ({
-    SKU: getSku(item),
-    Quantity: getQty(item),
-  }));
-}
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
 export default {
-  name: 'InvBookingCart',
-  props: {
-    content: { type: Object, required: true },
-    uid: { type: String, required: true },
-    /* wwEditor:start */
-    wwEditorState: { type: Object, required: true },
-    /* wwEditor:end */
-  },
-  emits: ['trigger-event'],
-  setup(props, { emit }) {
-    const internalCart = ref([]);
-    const connectedHeaderId = ref(null);
-    const selectedBookingId = ref('');
-    const bookingTitle = ref('');
-    const bookingPicId = ref('');
-    const quickAddSku = ref('');
-    const quickAddError = ref(false);
-    const existingSelectRef = ref(null);
+    props: {
+        content: { type: Object, required: true },
+        uid: { type: String, required: true },
+        /* wwEditor:start */
+        wwEditorState: { type: Object, required: true },
+        /* wwEditor:end */
+    },
+    emits: ['trigger-event'],
+    setup(props, { emit }) {
+        // ── Resolve bound collections ──
+        const referenceData = computed(() =>
+            wwLib.wwUtils.getDataFromCollection(props.content?.referenceData) || []
+        );
+        const cartData = computed(() =>
+            wwLib.wwUtils.getDataFromCollection(props.content?.cartData) || []
+        );
+        const resolvedBookingHeaders = computed(() =>
+            wwLib.wwUtils.getDataFromCollection(props.content?.bookingHeaders) || []
+        );
+        const bookingItemsData = computed(() =>
+            wwLib.wwUtils.getDataFromCollection(props.content?.bookingItems) || []
+        );
+        const resolvedTeammates = computed(() =>
+            wwLib.wwUtils.getDataFromCollection(props.content?.teammatesList) || []
+        );
 
-    const reference = computed(() => {
-      const raw = wwLib.wwUtils.getDataFromCollection(props.content.referenceData);
-      return normalizeCollection(raw);
-    });
+        // ── Internal state ──
+        const internalCart = ref([]);
+        const lastCartSnapshot = ref([]);
 
-    const cartRaw = computed(() => {
-      const raw = wwLib.wwUtils.getDataFromCollection(props.content.cartData);
-      return normalizeCollection(raw);
-    });
+        const isConnected = ref(false);
+        const connectedHeaderId = ref(null);
+        const connectedBookingNumber = ref(null);
 
-    const buffer = computed(() => props.content.buffer === true);
+        const bookingTitle = ref('');
+        const selectedPIC = ref(null);
+        const selectedPICName = ref('');
 
-    const referenceBySku = computed(() => {
-      const map = {};
-      reference.value.forEach((row) => {
-        const sku = getSku(row);
-        if (sku) map[sku] = row;
-      });
-      return map;
-    });
+        const selectedBookingOption = ref(null);
+        const bookingDropdownOpen = ref(false);
+        const picDropdownOpen = ref(false);
 
-    const availableQty = (refRow) => {
-      const n = Number(refRow?.SNT ?? refRow?.snt ?? 0);
-      const val = Number.isNaN(n) ? 0 : n;
-      return buffer.value ? Math.max(0, val - 25) : val;
-    };
+        const quickAddInput = ref('');
+        const quickAddError = ref('');
 
-    const cartRows = computed(() => {
-      return internalCart.value.map((item) => {
-        const sku = getSku(item);
-        const quantity = getQty(item);
-        const refRow = referenceBySku.value[sku];
-        return {
-          sku,
-          quantity,
-          ref: refRow || null,
-          available: refRow != null ? availableQty(refRow) : 0,
-        };
-      });
-    });
+        const bookingSelectEl = ref(null);
+        const picSelectEl = ref(null);
 
-    const teammates = computed(() => {
-      const raw = wwLib.wwUtils.getDataFromCollection(props.content.teammatesList);
-      return normalizeCollection(raw);
-    });
+        // ── Sync cart from external cartData (when not connected) ──
+        watch(cartData, (newVal) => {
+            if (isConnected.value) return;
 
-    const bookingHeaders = computed(() => {
-      const raw = wwLib.wwUtils.getDataFromCollection(props.content.bookingHeaders);
-      return normalizeCollection(raw);
-    });
+            const incoming = newVal || [];
+            const oldSkus = new Set(lastCartSnapshot.value.map(i => i.SKU));
+            const newSkus = new Set(incoming.map(i => i.SKU));
 
-    const bookingItems = computed(() => {
-      const raw = wwLib.wwUtils.getDataFromCollection(props.content.bookingItems);
-      return normalizeCollection(raw);
-    });
+            const addedItems = incoming.filter(i => !oldSkus.has(i.SKU));
+            const removedSkuSet = new Set(
+                lastCartSnapshot.value.filter(i => !newSkus.has(i.SKU)).map(i => i.SKU)
+            );
 
-    const teammatesById = computed(() => {
-      const map = {};
-      teammates.value.forEach((t) => {
-        if (t.id) map[t.id] = t;
-      });
-      return map;
-    });
+            for (const item of addedItems) {
+                if (!internalCart.value.find(c => c.sku === item.SKU)) {
+                    internalCart.value.push({ sku: item.SKU, quantity: item.Quantity || 1 });
+                }
+            }
 
-    const editOptions = computed(() => {
-      return bookingHeaders.value.map((h) => {
-        const pic = teammatesById.value[h.PIC_ID || h.pic_id];
-        const picName = pic ? (pic.Name || pic.name || '') : '';
-        const num = h.BookingNumber || h.bookingNumber || '';
-        const title = h.BookingTitle || h.bookingTitle || '';
-        const display = [num, title].filter(Boolean).join(' • ') || num || h.id;
-        return { id: h.id, ...h, display, picName };
-      });
-    });
+            if (removedSkuSet.size > 0) {
+                internalCart.value = internalCart.value.filter(c => !removedSkuSet.has(c.sku));
+            }
 
-    const filteredEditOptions = computed(() => editOptions.value);
+            lastCartSnapshot.value = [...incoming];
+        }, { immediate: true, deep: true });
 
-    const canProceed = computed(() => {
-      const hasTitle = (bookingTitle.value || '').trim().length > 0;
-      const hasPic = (bookingPicId.value || '').trim().length > 0;
-      return hasTitle && hasPic;
-    });
+        // ── Build reference lookup ──
+        const refLookup = computed(() => {
+            const map = {};
+            referenceData.value.forEach(r => { map[r.SKU] = r; });
+            return map;
+        });
 
-    const isOverbooking = computed(() => {
-      return cartRows.value.some((row) => row.quantity > row.available);
-    });
+        // ── Resolved cart (display-ready) ──
+        const resolvedCart = computed(() => {
+            const bufferOn = !!props.content?.buffer;
+            return internalCart.value.map(c => {
+                const ref = refLookup.value[c.sku];
+                const snt = ref ? (Number(ref.SNT) || 0) : 0;
+                const available = bufferOn ? Math.max(0, snt - 25) : snt;
+                return {
+                    sku: c.sku,
+                    quantity: c.quantity,
+                    model: ref ? ref.Model : 'Unknown Item',
+                    color: ref ? ref.Color : '-',
+                    size: ref ? ref.Size : '-',
+                    imageLink: ref ? ref.ImageLink : null,
+                    available,
+                    isOverLimit: c.quantity > available,
+                    isUnknown: !ref,
+                };
+            });
+        });
 
-    const confirmButtonText = computed(() => {
-      return isOverbooking.value
-        ? (props.content.proceedOverbookingText || 'Proceed (Overbooked)')
-        : (props.content.confirmButtonText || 'Confirm Booking');
-    });
+        // ── Computed helpers ──
+        const hasOverbooking = computed(() => resolvedCart.value.some(i => i.isOverLimit));
+        const canConfirm = computed(() =>
+            internalCart.value.length > 0 &&
+            bookingTitle.value.trim().length > 0 &&
+            selectedPIC.value != null
+        );
+        const subtitle = computed(() =>
+            isConnected.value && connectedBookingNumber.value
+                ? `Modifying Order #${connectedBookingNumber.value}`
+                : 'Drafting New Order'
+        );
+        const itemCount = computed(() => internalCart.value.length);
+        const confirmLabel = computed(() =>
+            hasOverbooking.value && canConfirm.value
+                ? 'Proceed (Overbooked)'
+                : 'Confirm Booking'
+        );
+        const bookingDropdownDisplay = computed(() =>
+            selectedBookingOption.value
+                ? `${selectedBookingOption.value.BookingNumber} • ${selectedBookingOption.value.BookingTitle}`
+                : 'Select Booking ID...'
+        );
+        const picDropdownDisplay = computed(() =>
+            selectedPICName.value || 'Select Teammate...'
+        );
 
-    const cartSubtitle = computed(() => {
-      if (!connectedHeaderId.value) return 'Drafting New Order';
-      const header = bookingHeaders.value.find((h) => h.id === connectedHeaderId.value);
-      const num = header ? (header.BookingNumber || header.bookingNumber || '') : '';
-      return num ? `Modifying Order #${num}` : 'Drafting New Order';
-    });
-
-    watch(
-      () => cartRaw.value,
-      (next) => {
-        if (!connectedHeaderId.value) {
-          internalCart.value = cartToEmit(next);
+        // ── Cart actions ──
+        function updateQuantity(index, val) {
+            const qty = Math.max(0, parseInt(val) || 0);
+            internalCart.value[index].quantity = qty;
         }
-      },
-      { immediate: true, deep: true }
-    );
 
-    function onConnect() {
-      /* wwEditor:start */
-      if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
-      /* wwEditor:end */
-      const headerId = selectedBookingId.value;
-      if (!headerId) return;
-      const header = bookingHeaders.value.find((h) => h.id === headerId);
-      if (!header) return;
-      const items = bookingItems.value
-        .filter((bi) => (bi.HeaderID || bi.headerId) === headerId)
-        .map((bi) => ({
-          SKU: bi.SKU || bi.sku || '',
-          Quantity: Math.max(1, Number(bi.Quantity ?? bi.quantity) || 1),
-        }));
-      internalCart.value = items;
-      connectedHeaderId.value = header.id;
-      bookingTitle.value = header.BookingTitle || header.bookingTitle || '';
-      bookingPicId.value = header.PIC_ID || header.pic_id || '';
-    }
+        function removeItem(index) {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
 
-    function onDisconnect() {
-      /* wwEditor:start */
-      if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
-      /* wwEditor:end */
-      connectedHeaderId.value = null;
-      internalCart.value = [];
-      bookingTitle.value = '';
-      bookingPicId.value = '';
-      selectedBookingId.value = '';
-    }
+            internalCart.value.splice(index, 1);
 
-    function clearQuickAdd() {
-      quickAddSku.value = '';
-      quickAddError.value = false;
-    }
+            if (!isConnected.value) {
+                const payload = internalCart.value.map(c => ({ SKU: c.sku, Quantity: c.quantity }));
+                emit('trigger-event', { name: 'removeFromCart', event: { cart: payload } });
+            }
+        }
 
-    function onQuickAddSku() {
-      /* wwEditor:start */
-      if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
-      /* wwEditor:end */
-      quickAddError.value = false;
-      const sku = (quickAddSku.value || '').trim();
-      if (!sku) return;
-      const refRow = referenceBySku.value[sku];
-      if (refRow) {
-        internalCart.value = [...internalCart.value, { SKU: sku, Quantity: 1 }];
-        quickAddSku.value = '';
-      } else {
-        quickAddError.value = true;
-      }
-    }
+        // ── Quick Add ──
+        function quickAdd() {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
 
-    function removeFromCart(sku) {
-      /* wwEditor:start */
-      if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
-      /* wwEditor:end */
-      const next = internalCart.value.filter((item) => getSku(item) !== sku);
-      internalCart.value = next;
-      emit('trigger-event', { name: 'removeFromCart', event: { cart: cartToEmit(next) } });
-    }
+            const sku = quickAddInput.value.trim();
+            if (!sku) return;
 
-    function onQtyInput(sku, ev) {
-      /* wwEditor:start */
-      if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
-      /* wwEditor:end */
-      const v = parseInt(ev.target.value, 10);
-      const qty = Number.isNaN(v) || v < 1 ? 1 : v;
-      internalCart.value = internalCart.value.map((item) =>
-        getSku(item) === sku ? { SKU: getSku(item), Quantity: qty } : { SKU: getSku(item), Quantity: getQty(item) }
-      );
-    }
+            if (refLookup.value[sku]) {
+                const existing = internalCart.value.findIndex(c => c.sku === sku);
+                if (existing >= 0) {
+                    internalCart.value[existing].quantity += 1;
+                } else {
+                    internalCart.value.push({ sku, quantity: 1 });
+                }
+                quickAddInput.value = '';
+                quickAddError.value = '';
+            } else {
+                quickAddError.value = 'No Match Found';
+            }
+        }
 
-    function onProceed() {
-      /* wwEditor:start */
-      if (props.wwEditorState?.editMode === wwLib?.wwEditorHelper?.EDIT_MODES?.EDITION) return;
-      /* wwEditor:end */
-      if (!canProceed.value) return;
-      const header = connectedHeaderId.value ? bookingHeaders.value.find((h) => h.id === connectedHeaderId.value) : null;
-      const now = toKLTimestamp();
-      const bookingNumber = header
-        ? (header.BookingNumber || header.bookingNumber || '')
-        : 'BN-' + String(Date.now()).slice(-6);
-      if (isOverbooking.value) {
-        emit('trigger-event', { name: 'overbooking', event: { value: { overbooked: true } } });
-      }
-      emit('trigger-event', {
-        name: 'booked',
-        event: {
-          value: {
-            isEdit: !!connectedHeaderId.value,
-            headerId: connectedHeaderId.value,
-            created_at: header ? (header.created_at || now) : now,
-            updated_at: now,
-            pic_uuid: bookingPicId.value || '',
-            BookingNumber: bookingNumber,
-            BookingItems: cartToEmit(internalCart.value),
-          },
-        },
-      });
-    }
+        function clearQuickAdd() {
+            quickAddInput.value = '';
+            quickAddError.value = '';
+        }
 
-    return {
-      internalCart,
-      connectedHeaderId,
-      selectedBookingId,
-      bookingTitle,
-      bookingPicId,
-      quickAddSku,
-      quickAddError,
-      existingSelectRef,
-      cartRows,
-      teammates,
-      filteredEditOptions,
-      canProceed,
-      isOverbooking,
-      confirmButtonText,
-      cartSubtitle,
-      onConnect,
-      onDisconnect,
-      clearQuickAdd,
-      onQuickAddSku,
-      removeFromCart,
-      onQtyInput,
-      onProceed,
-    };
-  },
-  computed: {
-    productModel() {
-      return (row) => (row.ref ? (row.ref.Model || '—') : 'Unknown Item');
+        // ── Existing Booking (connect / disconnect) ──
+        function connectBooking() {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+
+            if (!selectedBookingOption.value) return;
+
+            const header = selectedBookingOption.value;
+            connectedHeaderId.value = header.id;
+            connectedBookingNumber.value = header.BookingNumber;
+            isConnected.value = true;
+
+            const items = bookingItemsData.value.filter(i => i.HeaderID === header.id);
+            internalCart.value = items.map(i => ({ sku: i.SKU, quantity: i.Quantity || 1 }));
+
+            bookingTitle.value = header.BookingTitle || '';
+
+            if (header.PIC_ID) {
+                selectedPIC.value = header.PIC_ID;
+                const tm = resolvedTeammates.value.find(t => t.id === header.PIC_ID);
+                selectedPICName.value = tm ? tm.Name : '';
+            }
+        }
+
+        function disconnectBooking() {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+
+            isConnected.value = false;
+            connectedHeaderId.value = null;
+            connectedBookingNumber.value = null;
+            internalCart.value = [];
+            bookingTitle.value = '';
+            selectedPIC.value = null;
+            selectedPICName.value = '';
+            selectedBookingOption.value = null;
+
+            lastCartSnapshot.value = [...(cartData.value || [])];
+        }
+
+        // ── Confirm booking ──
+        function confirmBooking() {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+
+            if (!canConfirm.value) return;
+
+            const now = new Date().toISOString();
+            const items = internalCart.value.map(c => ({ SKU: c.sku, Quantity: c.quantity }));
+
+            if (hasOverbooking.value) {
+                emit('trigger-event', {
+                    name: 'overbooking',
+                    event: { value: { overbooked: true } },
+                });
+            }
+
+            emit('trigger-event', {
+                name: 'booking',
+                event: {
+                    value: {
+                        isEdit: isConnected.value,
+                        headerId: connectedHeaderId.value,
+                        BookingNumber: connectedBookingNumber.value,
+                        BookingTitle: bookingTitle.value,
+                        BookingItems: items,
+                        pic_uuid: selectedPIC.value,
+                        created_at: isConnected.value ? null : now,
+                        updated_at: now,
+                    },
+                },
+            });
+        }
+
+        // ── Dropdown helpers ──
+        function toggleBookingDropdown() {
+            if (isConnected.value) return;
+            bookingDropdownOpen.value = !bookingDropdownOpen.value;
+            picDropdownOpen.value = false;
+        }
+        function selectBooking(header) {
+            selectedBookingOption.value = header;
+            bookingDropdownOpen.value = false;
+        }
+        function togglePICDropdown() {
+            picDropdownOpen.value = !picDropdownOpen.value;
+            bookingDropdownOpen.value = false;
+        }
+        function selectPIC(teammate) {
+            if (teammate) {
+                selectedPIC.value = teammate.id;
+                selectedPICName.value = teammate.Name;
+            } else {
+                selectedPIC.value = null;
+                selectedPICName.value = '';
+            }
+            picDropdownOpen.value = false;
+        }
+
+        // ── Click-outside to close dropdowns ──
+        function handleClickOutside(e) {
+            if (bookingSelectEl.value && !bookingSelectEl.value.contains(e.target)) {
+                bookingDropdownOpen.value = false;
+            }
+            if (picSelectEl.value && !picSelectEl.value.contains(e.target)) {
+                picDropdownOpen.value = false;
+            }
+        }
+
+        onMounted(() => document.addEventListener('mousedown', handleClickOutside));
+        onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside));
+
+        return {
+            resolvedCart,
+            resolvedBookingHeaders,
+            resolvedTeammates,
+            hasOverbooking,
+            canConfirm,
+            subtitle,
+            itemCount,
+            confirmLabel,
+            bookingDropdownDisplay,
+            picDropdownDisplay,
+            isConnected,
+            bookingTitle,
+            selectedPIC,
+            selectedBookingOption,
+            bookingDropdownOpen,
+            picDropdownOpen,
+            quickAddInput,
+            quickAddError,
+            bookingSelectEl,
+            picSelectEl,
+            updateQuantity,
+            removeItem,
+            quickAdd,
+            clearQuickAdd,
+            connectBooking,
+            disconnectBooking,
+            confirmBooking,
+            toggleBookingDropdown,
+            selectBooking,
+            togglePICDropdown,
+            selectPIC,
+        };
     },
-    productColorSize() {
-      return (row) => {
-        if (!row.ref) return '—';
-        const color = row.ref.Color || row.ref.color || '';
-        const size = row.ref.Size || row.ref.size || '';
-        return [color, size].filter(Boolean).join(' · ') || '—';
-      };
-    },
-    rootStyle() {
-      const c = this.content;
-      return {
-        '--inv-font-size': '12px',
-        '--inv-cell-bg': c.cellColor || '#ffffff',
-        '--inv-text-color': c.textColor || '#1e293b',
-        '--inv-radius': c.borderRadius || '8px',
-        '--inv-input-border': (c.inputBorderColor || '#e2e8f0') + ' 1px solid',
-        '--inv-btn-color': c.buttonColor || '#2563eb',
-      };
-    },
-    inputStyle() {
-      return {
-        border: 'var(--inv-input-border)',
-        borderRadius: 'var(--inv-radius)',
-      };
-    },
-    proceedButtonStyle() {
-      const c = this.content;
-      if (!this.canProceed) return { backgroundColor: '#e2e8f0', color: '#94a3b8' };
-      if (this.isOverbooking) return { backgroundColor: '#dc2626', color: '#fff' };
-      return { backgroundColor: 'var(--inv-btn-color)', color: '#fff' };
-    },
-  },
-  methods: {
-    /* wwEditor:start */
-    getCartUpdateTestEvent() {
-      return { cart: [{ SKU: 'SAMPLE', Quantity: 1 }] };
-    },
-    getBookedTestEvent() {
-      return {
-        value: {
-          isEdit: false,
-          headerId: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          pic_uuid: '',
-          BookingNumber: 'BN-123456',
-          BookingItems: [{ SKU: 'SAMPLE', Quantity: 1 }],
-        },
-      };
-    },
-    getOverbookingTestEvent() {
-      return { value: { overbooked: true } };
-    },
-    /* wwEditor:end */
-  },
 };
 </script>
 
-<style scoped>
-.inv-booking-cart {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: var(--inv-text-color);
-  display: flex;
-  flex-direction: row;
-  column-gap: 5px;
-  width: 100%;
-  max-width: 900px;
-  min-height: 320px;
-  min-width: 600px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.inv-booking-cart__left {
-  width: 70%;
-  min-width: 0;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.inv-booking-cart__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 16px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.inv-booking-cart__title {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  margin: 0;
-  color: var(--inv-text-color);
-}
-
-.inv-booking-cart__subtitle {
-  font-size: 12px;
-  font-weight: 400;
-  color: #64748b;
-  margin: 0;
-}
-
-.inv-booking-cart__count {
-  margin-left: auto;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.inv-booking-cart__add-sku {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.inv-booking-cart__add-sku .inv-booking-cart__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.inv-booking-cart__input {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  padding: 8px 10px;
-  color: var(--inv-text-color);
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-}
-
-.inv-booking-cart__input:focus {
-  outline: none;
-  border-color: var(--inv-btn-color);
-}
-
-.inv-booking-cart__error {
-  color: #dc2626;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.inv-booking-cart__empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
-  text-align: center;
-}
-
-.inv-booking-cart__empty-icon {
-  color: #cbd5e1;
-  margin-bottom: 12px;
-}
-
-.inv-booking-cart__empty-text {
-  margin: 0;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.inv-booking-cart__table-wrap {
-  flex: 1;
-  overflow: auto;
-}
-
-.inv-booking-cart__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.inv-booking-cart__th {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: left;
-  padding: 10px 12px;
-  background: #f1f5f9;
-  color: #64748b;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.inv-booking-cart__th--img { width: 80px; }
-.inv-booking-cart__th--avail { width: 90px; }
-.inv-booking-cart__th--qty { width: 90px; }
-.inv-booking-cart__th--action { width: 44px; }
-
-.inv-booking-cart__tr {
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.inv-booking-cart__tr:hover {
-  background: #f8fafc;
-}
-
-.inv-booking-cart__td {
-  padding: 10px 12px;
-  vertical-align: middle;
-  font-size: 12px;
-}
-
-.inv-booking-cart__td--img { width: 80px; }
-.inv-booking-cart__td--avail { width: 90px; text-align: right; }
-.inv-booking-cart__td--qty { width: 90px; }
-.inv-booking-cart__td--action { width: 44px; }
-
-.inv-booking-cart__avail-num {
-  font-size: 12px;
-  text-align: right;
-}
-
-.inv-booking-cart__avail-num--zero {
-  color: #dc2626;
-}
-
-.inv-booking-cart__qty-input--over {
-  border-color: #dc2626 !important;
-  color: #dc2626;
-}
-
-.inv-booking-cart__over-limit {
-  margin: 4px 0 0 0;
-  font-size: 11px;
-  color: #dc2626;
-}
-
-.inv-booking-cart__row-img-wrap {
-  width: 48px;
-  height: 48px;
-  background: #f1f5f9;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.inv-booking-cart__row-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.inv-booking-cart__row-img-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  color: #94a3b8;
-  background: #f1f5f9;
-}
-
-.inv-booking-cart__model {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.inv-booking-cart__color-size {
-  font-size: 12px;
-  color: #475569;
-  margin-top: 2px;
-}
-
-.inv-booking-cart__sku {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-
-.inv-booking-cart__qty-input {
-  width: 64px;
-  padding: 6px 8px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: var(--inv-text-color);
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-}
-
-.inv-booking-cart__btn-trash {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  color: #64748b;
-}
-
-.inv-booking-cart__btn-trash:hover {
-  background: #fef2f2;
-  color: #dc2626;
-}
-
-.inv-booking-cart__right {
-  width: 20%;
-  min-width: 0;
-  flex-shrink: 0;
-  background: #f8fafc;
-}
-
-.inv-booking-cart__right-inner {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.inv-booking-cart__block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.inv-booking-cart__block-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: #64748b;
-  margin: 0;
-}
-
-.inv-booking-cart__block-title--with-action {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.inv-booking-cart__btn-clear-quick {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  margin: 0;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  color: #94a3b8;
-  cursor: pointer;
-}
-
-.inv-booking-cart__btn-clear-quick:hover {
-  color: #64748b;
-  background: #e2e8f0;
-}
-
-.inv-booking-cart__existing-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.inv-booking-cart__select--existing {
-  flex: 1;
-  min-width: 0;
-}
-
-.inv-booking-cart__btn-connect,
-.inv-booking-cart__btn-disconnect {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #fff;
-  color: #475569;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.inv-booking-cart__btn-connect:hover:not(:disabled) {
-  border-color: var(--inv-btn-color);
-  color: var(--inv-btn-color);
-}
-
-.inv-booking-cart__btn-connect:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.inv-booking-cart__btn-disconnect:hover {
-  border-color: #dc2626;
-  color: #dc2626;
-  background: #fef2f2;
-}
-
-.inv-booking-cart__quick-add-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.inv-booking-cart__quick-add-row .inv-booking-cart__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.inv-booking-cart__btn-add-sku {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: var(--inv-btn-color);
-  color: #fff;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.inv-booking-cart__btn-add-sku:hover {
-  opacity: 0.9;
-}
-
-.inv-booking-cart__field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.inv-booking-cart__field-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #475569;
-}
-
-.inv-booking-cart__field-label svg {
-  flex-shrink: 0;
-  color: #64748b;
-}
-
-.inv-booking-cart__select {
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 1em;
-  font-family: inherit;
-  color: var(--inv-text-color);
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.inv-booking-cart__select:focus {
-  outline: none;
-  border-color: var(--inv-btn-color);
-}
-
-.inv-booking-cart__search {
-  margin-bottom: 0.5rem;
-}
-
-.inv-booking-cart__card--action {
-  padding-top: 1rem;
-  padding-bottom: 1rem;
-}
-
-.inv-booking-cart__btn-proceed {
-  width: 100%;
-  padding: 12px 24px;
-  font-size: 1em;
-  font-weight: 600;
-  font-family: inherit;
-  color: #fff;
-  background: var(--inv-btn-color);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: opacity 0.15s, background 0.15s;
-}
-
-.inv-booking-cart__btn-proceed:hover:not(:disabled) {
-  opacity: 0.95;
-}
-
-.inv-booking-cart__btn-proceed:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.inv-booking-cart__btn-proceed--overbook {
-  color: #fff !important;
-  background: #dc2626 !important;
-}
-
-.inv-booking-cart__btn-proceed--overbook:hover:not(:disabled) {
-  background: #b91c1c !important;
-}
-
-.inv-booking-cart__disclaimer {
-  margin: 0;
-  font-size: 11px;
-  font-style: italic;
-  color: #94a3b8;
-  line-height: 1.4;
-}
-
-.inv-booking-cart__summary {
-  padding: 12px 0;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.inv-booking-cart__summary-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--inv-text-color);
-}
-
-.inv-booking-cart__summary-row span:last-child {
-  font-weight: 600;
-}
-
-.inv-booking-cart__select--edit {
-  padding-right: 28px;
-}
-
-.inv-booking-cart__btn-confirm {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--inv-btn-color);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.inv-booking-cart__btn-confirm:hover:not(:disabled) {
-  opacity: 0.95;
-}
-
-.inv-booking-cart__btn-confirm:disabled {
-  cursor: not-allowed;
-}
-
-.inv-booking-cart__btn-confirm--overbook {
-  background: #dc2626 !important;
-}
-
-.inv-booking-cart__btn-confirm--overbook:hover:not(:disabled) {
-  background: #b91c1c !important;
+<style lang="scss" scoped>
+/* ── Tokens ── */
+$blue: #3b82f6;
+$blue-dark: #2563eb;
+$red: #ef4444;
+$red-dark: #dc2626;
+$gray-900: #111827;
+$gray-700: #374151;
+$gray-500: #6b7280;
+$gray-400: #9ca3af;
+$gray-300: #d1d5db;
+$gray-200: #e5e7eb;
+$gray-100: #f3f4f6;
+$gray-50: #f9fafb;
+$white: #ffffff;
+$radius: 10px;
+$radius-sm: 6px;
+$transition: 0.15s ease;
+
+/* ── Root container ── */
+.inventory-booking-cart {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    width: 100%;
+    background: $white;
+    border: 1px solid $gray-200;
+    border-radius: $radius;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    color: $gray-900;
+    overflow: hidden;
+}
+
+/* ═══════════ LEFT PANEL ═══════════ */
+.left-panel {
+    flex: 7;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 28px;
+}
+
+.cart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+.header-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.3;
+    color: $gray-900;
+}
+.header-subtitle {
+    font-size: 13px;
+    color: $gray-500;
+    margin: 2px 0 0;
+}
+.header-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+.count-divider {
+    color: $gray-300;
+    font-weight: 300;
+    font-size: 18px;
+}
+.count-text {
+    font-size: 13px;
+    color: $gray-500;
+    font-weight: 500;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 60px 20px;
+    color: $gray-400;
+}
+.empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 14px;
+    opacity: 0.5;
+}
+.empty-text {
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ── Cart table ── */
+.cart-table {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.table-head {
+    display: flex;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid $gray-200;
+    margin-bottom: 4px;
+}
+.th {
+    font-size: 11px;
+    font-weight: 600;
+    color: $gray-400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.th-image   { width: 64px;  flex-shrink: 0; }
+.th-details { flex: 1; }
+.th-avail   { width: 120px; text-align: center; flex-shrink: 0; }
+.th-qty     { width: 110px; text-align: center; flex-shrink: 0; }
+.th-action  { width: 44px;  flex-shrink: 0; }
+
+.table-body {
+    display: flex;
+    flex-direction: column;
+}
+.table-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid $gray-100;
+    &:last-child { border-bottom: none; }
+}
+.td { display: flex; align-items: center; }
+.td-image   { width: 64px;  flex-shrink: 0; justify-content: center; }
+.td-details { flex: 1; flex-direction: column; align-items: flex-start; min-width: 0; }
+.td-avail   { width: 120px; flex-direction: column; align-items: center; flex-shrink: 0; }
+.td-qty     { width: 110px; justify-content: center; flex-shrink: 0; }
+.td-action  { width: 44px;  justify-content: center; flex-shrink: 0; }
+
+.product-img {
+    width: 44px;
+    height: 44px;
+    border-radius: $radius-sm;
+    object-fit: cover;
+}
+.product-img-placeholder {
+    width: 44px;
+    height: 44px;
+    border-radius: $radius-sm;
+    background: $gray-100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $gray-400;
+    svg { width: 24px; height: 24px; }
+}
+
+.product-model {
+    font-weight: 600;
+    font-size: 14px;
+    color: $gray-900;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.product-variant {
+    font-size: 12px;
+    color: $gray-500;
+    margin-top: 1px;
+}
+.product-sku {
+    font-size: 11px;
+    color: $gray-400;
+    margin-top: 1px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    letter-spacing: 0.02em;
+}
+
+.avail-number {
+    font-size: 15px;
+    font-weight: 600;
+    color: $gray-700;
+}
+.td-avail.is-over .avail-number {
+    color: $red;
+}
+.over-limit-badge {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    color: $red;
+    margin-top: 2px;
+    svg { flex-shrink: 0; }
+}
+
+.qty-input {
+    width: 72px;
+    height: 36px;
+    border: 1.5px solid $gray-300;
+    border-radius: $radius-sm;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: $gray-900;
+    background: $white;
+    outline: none;
+    transition: border-color $transition;
+    -moz-appearance: textfield;
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    &:focus { border-color: $blue; }
+    &.is-over {
+        border-color: $red;
+        color: $red;
+    }
+}
+
+.btn-remove {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: $gray-400;
+    cursor: pointer;
+    border-radius: $radius-sm;
+    transition: color $transition, background $transition;
+    svg { width: 18px; height: 18px; }
+    &:hover { color: $red; background: rgba($red, 0.06); }
+}
+
+/* ═══════════ DIVIDER ═══════════ */
+.panel-divider {
+    width: 1px;
+    background: $gray-200;
+    flex-shrink: 0;
+}
+
+/* ═══════════ RIGHT PANEL ═══════════ */
+.right-panel {
+    flex: 3;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 22px;
+    gap: 18px;
+}
+
+.rp-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.rp-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: $gray-700;
+}
+.rp-label--caps {
+    font-size: 11px;
+    font-weight: 700;
+    color: $gray-400;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.label-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+/* ── Custom select ── */
+.custom-select {
+    position: relative;
+}
+.select-trigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    background: $white;
+    cursor: pointer;
+    transition: border-color $transition;
+    font-family: inherit;
+    font-size: 13px;
+    color: $gray-400;
+    text-align: left;
+    gap: 6px;
+    &.has-value { color: $gray-900; }
+    &:focus, &:hover { border-color: $blue; }
+    &:disabled {
+        background: $gray-50;
+        cursor: default;
+        &:hover { border-color: $gray-200; }
+    }
+}
+.select-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.select-dots {
+    color: $gray-400;
+    font-weight: 700;
+    letter-spacing: 2px;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+.select-options {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: $white;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    z-index: 50;
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+.select-option {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: $gray-700;
+    cursor: pointer;
+    transition: background $transition;
+    &:hover { background: $gray-50; }
+}
+.select-option--placeholder {
+    color: $gray-400;
+    font-weight: 500;
+    &:hover { background: rgba($blue, 0.04); }
+}
+.custom-select--icon .select-trigger {
+    padding-left: 10px;
+}
+.custom-select--icon .field-icon {
+    width: 18px;
+    height: 18px;
+    color: $gray-400;
+    flex-shrink: 0;
+}
+
+/* ── Existing booking row ── */
+.existing-booking-row {
+    display: flex;
+    gap: 8px;
+    .custom-select { flex: 1; min-width: 0; }
+}
+.btn-connect {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    background: $white;
+    color: $gray-400;
+    cursor: pointer;
+    transition: all $transition;
+    svg { width: 18px; height: 18px; }
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    &.btn-connect--ready {
+        border-color: $blue;
+        color: $blue;
+        background: rgba($blue, 0.06);
+        &:hover { background: $blue; color: $white; }
+    }
+    &.btn-connect--linked {
+        border-color: $red;
+        color: $red;
+        background: rgba($red, 0.06);
+        &:hover { background: $red; color: $white; }
+    }
+}
+
+/* ── Quick Add ── */
+.label-clear-btn {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: $gray-400;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    svg { width: 12px; height: 12px; }
+    &:hover { color: $gray-700; }
+}
+.quick-add-row {
+    display: flex;
+    gap: 8px;
+}
+.quick-add-input {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    padding: 0 12px;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    font-size: 13px;
+    color: $gray-900;
+    background: $white;
+    outline: none;
+    font-family: inherit;
+    transition: border-color $transition;
+    &::placeholder { color: $gray-400; }
+    &:focus { border-color: $blue; }
+}
+.btn-quick-add {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: $radius-sm;
+    background: $blue;
+    color: $white;
+    cursor: pointer;
+    transition: background $transition;
+    svg { width: 18px; height: 18px; }
+    &:hover { background: $blue-dark; }
+}
+.quick-add-error {
+    font-size: 12px;
+    color: $red;
+    font-weight: 500;
+    margin: 2px 0 0;
+}
+
+/* ── Input with icon ── */
+.input-icon-wrap {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    padding: 0 12px;
+    gap: 8px;
+    background: $white;
+    transition: border-color $transition;
+    &:focus-within { border-color: $blue; }
+    .field-icon {
+        width: 18px;
+        height: 18px;
+        color: $gray-400;
+        flex-shrink: 0;
+    }
+    .icon-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 13px;
+        color: $gray-900;
+        font-family: inherit;
+        background: transparent;
+        &::placeholder { color: $gray-400; }
+    }
+}
+
+/* ── Confirm button ── */
+.btn-confirm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 46px;
+    border: none;
+    border-radius: $radius-sm;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background $transition, opacity $transition;
+    font-family: inherit;
+    background: $blue;
+    color: $white;
+    &:hover { background: $blue-dark; }
+    &.btn-confirm--overbooked {
+        background: $red;
+        &:hover { background: $red-dark; }
+    }
+    &.btn-confirm--disabled {
+        background: $gray-200;
+        color: $gray-400;
+        cursor: not-allowed;
+        &:hover { background: $gray-200; }
+    }
+}
+.confirm-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.disclaimer {
+    font-size: 11px;
+    color: $gray-400;
+    text-align: center;
+    margin: 0;
+    font-style: italic;
 }
 </style>
