@@ -1,6 +1,83 @@
 <template>
   <div class="inv-booking-cart" :style="rootStyle">
-    <!-- Right panel: Existing Booking, Quick Add, Details, Confirm (DOM-first for row-reverse) -->
+    <!-- Cart: left | Actions: right (CSS Grid enforces layout) -->
+    <div class="inv-booking-cart__left">
+      <div class="inv-booking-cart__header">
+        <h2 class="inv-booking-cart__title">Booking Cart</h2>
+        <p class="inv-booking-cart__subtitle">{{ cartSubtitle }}</p>
+        <span class="inv-booking-cart__count">{{ cartRows.length }} Items</span>
+      </div>
+      <div v-if="!cartRows.length" class="inv-booking-cart__empty">
+        <div class="inv-booking-cart__empty-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        </div>
+        <p class="inv-booking-cart__empty-text">Add items manually or from the list below</p>
+      </div>
+      <div v-else class="inv-booking-cart__table-wrap">
+        <table class="inv-booking-cart__table">
+          <thead>
+            <tr>
+              <th class="inv-booking-cart__th inv-booking-cart__th--img">IMAGE</th>
+              <th class="inv-booking-cart__th">PRODUCT DETAILS</th>
+              <th class="inv-booking-cart__th inv-booking-cart__th--avail">AVAILABILITY</th>
+              <th class="inv-booking-cart__th inv-booking-cart__th--qty">ORDER QTY</th>
+              <th class="inv-booking-cart__th inv-booking-cart__th--action"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, index) in cartRows"
+              :key="row.sku + '-' + index"
+              class="inv-booking-cart__tr"
+            >
+              <td class="inv-booking-cart__td inv-booking-cart__td--img">
+                <div class="inv-booking-cart__row-img-wrap">
+                  <img
+                    v-if="row.ref && row.ref.ImageLink"
+                    :src="row.ref.ImageLink"
+                    :alt="row.ref.Model"
+                    class="inv-booking-cart__row-img"
+                  />
+                  <div v-else class="inv-booking-cart__row-img-placeholder">No image</div>
+                </div>
+              </td>
+              <td class="inv-booking-cart__td inv-booking-cart__td--details">
+                <div class="inv-booking-cart__model">{{ productModel(row) }}</div>
+                <div class="inv-booking-cart__color-size">{{ productColorSize(row) }}</div>
+                <div class="inv-booking-cart__sku">{{ row.sku }}</div>
+              </td>
+              <td class="inv-booking-cart__td inv-booking-cart__td--avail">
+                <span class="inv-booking-cart__avail-num" :class="{ 'inv-booking-cart__avail-num--zero': row.available <= 0 }">{{ row.available }}</span>
+              </td>
+              <td class="inv-booking-cart__td inv-booking-cart__td--qty">
+                <input
+                  :value="row.quantity"
+                  type="number"
+                  min="1"
+                  class="inv-booking-cart__qty-input"
+                  :class="{ 'inv-booking-cart__qty-input--over': row.quantity > row.available }"
+                  :style="inputStyle"
+                  @input="onQtyInput(row.sku, $event)"
+                />
+                <p v-if="row.quantity > row.available" class="inv-booking-cart__over-limit">Over Limit</p>
+              </td>
+              <td class="inv-booking-cart__td inv-booking-cart__td--action">
+                <button
+                  type="button"
+                  class="inv-booking-cart__btn-trash"
+                  title="Remove from cart"
+                  @click="removeFromCart(row.sku)"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right panel: Existing Booking, Quick Add, Details, Confirm -->
     <div class="inv-booking-cart__right">
       <div class="inv-booking-cart__right-inner">
         <section class="inv-booking-cart__block">
@@ -121,83 +198,6 @@
           {{ confirmButtonText }}
         </button>
         <p class="inv-booking-cart__disclaimer">*Stock reserved upon confirmation.</p>
-      </div>
-    </div>
-
-    <!-- Left panel: Booking Cart -->
-    <div class="inv-booking-cart__left">
-      <div class="inv-booking-cart__header">
-        <h2 class="inv-booking-cart__title">Booking Cart</h2>
-        <p class="inv-booking-cart__subtitle">{{ cartSubtitle }}</p>
-        <span class="inv-booking-cart__count">{{ cartRows.length }} Items</span>
-      </div>
-      <div v-if="!cartRows.length" class="inv-booking-cart__empty">
-        <div class="inv-booking-cart__empty-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        </div>
-        <p class="inv-booking-cart__empty-text">Add items manually or from the list below</p>
-      </div>
-      <div v-else class="inv-booking-cart__table-wrap">
-        <table class="inv-booking-cart__table">
-          <thead>
-            <tr>
-              <th class="inv-booking-cart__th inv-booking-cart__th--img">IMAGE</th>
-              <th class="inv-booking-cart__th">PRODUCT DETAILS</th>
-              <th class="inv-booking-cart__th inv-booking-cart__th--avail">AVAILABILITY</th>
-              <th class="inv-booking-cart__th inv-booking-cart__th--qty">ORDER QTY</th>
-              <th class="inv-booking-cart__th inv-booking-cart__th--action"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(row, index) in cartRows"
-              :key="row.sku + '-' + index"
-              class="inv-booking-cart__tr"
-            >
-              <td class="inv-booking-cart__td inv-booking-cart__td--img">
-                <div class="inv-booking-cart__row-img-wrap">
-                  <img
-                    v-if="row.ref && row.ref.ImageLink"
-                    :src="row.ref.ImageLink"
-                    :alt="row.ref.Model"
-                    class="inv-booking-cart__row-img"
-                  />
-                  <div v-else class="inv-booking-cart__row-img-placeholder">No image</div>
-                </div>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--details">
-                <div class="inv-booking-cart__model">{{ productModel(row) }}</div>
-                <div class="inv-booking-cart__color-size">{{ productColorSize(row) }}</div>
-                <div class="inv-booking-cart__sku">{{ row.sku }}</div>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--avail">
-                <span class="inv-booking-cart__avail-num" :class="{ 'inv-booking-cart__avail-num--zero': row.available <= 0 }">{{ row.available }}</span>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--qty">
-                <input
-                  :value="row.quantity"
-                  type="number"
-                  min="1"
-                  class="inv-booking-cart__qty-input"
-                  :class="{ 'inv-booking-cart__qty-input--over': row.quantity > row.available }"
-                  :style="inputStyle"
-                  @input="onQtyInput(row.sku, $event)"
-                />
-                <p v-if="row.quantity > row.available" class="inv-booking-cart__over-limit">Over Limit</p>
-              </td>
-              <td class="inv-booking-cart__td inv-booking-cart__td--action">
-                <button
-                  type="button"
-                  class="inv-booking-cart__btn-trash"
-                  title="Remove from cart"
-                  @click="removeFromCart(row.sku)"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
@@ -560,9 +560,9 @@ export default {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: var(--inv-text-color);
-  display: flex;
-  flex-direction: row-reverse;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  grid-template-areas: 'cart actions';
   width: 100%;
   max-width: 900px;
   min-height: 320px;
@@ -574,11 +574,11 @@ export default {
 }
 
 .inv-booking-cart__left {
-  flex: 1;
+  grid-area: cart;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e2e8f0; /* between cart and actions */
+  border-right: 1px solid #e2e8f0;
 }
 
 .inv-booking-cart__header {
@@ -806,8 +806,8 @@ export default {
 }
 
 .inv-booking-cart__right {
-  width: 280px;
-  flex-shrink: 0;
+  grid-area: actions;
+  min-width: 0;
   background: #f8fafc;
 }
 
