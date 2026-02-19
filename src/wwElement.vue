@@ -441,8 +441,18 @@ export default {
             selectedPICName.value || 'Select Teammate...'
         );
 
+        // ── Helper: look up original Status from the variable ──
+        function getItemStatus(sku) {
+            const orig = (cartItems.value || []).find(i => i.SKU === sku);
+            return orig ? orig.Status : null;
+        }
+
         // ── Helper: build the full variable snapshot ──
-        function buildCartVariable() {
+        function buildCartVariable(excludeSku) {
+            let items = internalCart.value;
+            if (excludeSku) {
+                items = items.filter(c => c.sku !== excludeSku);
+            }
             return {
                 Booking_Header: {
                     id: cartHeader.value?.id || null,
@@ -451,10 +461,10 @@ export default {
                     BookingTitle: bookingTitle.value || null,
                     PIC_ID: selectedPIC.value || null,
                 },
-                Booking_Items: internalCart.value.map(c => ({
+                Booking_Items: items.map(c => ({
                     SKU: c.sku,
                     Quantity: c.quantity,
-                    Status: null,
+                    Status: getItemStatus(c.sku),
                 })),
             };
         }
@@ -470,10 +480,10 @@ export default {
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
 
-            internalCart.value.splice(index, 1);
+            const removedSku = internalCart.value[index].sku;
             emit('trigger-event', {
                 name: 'removeFromCart',
-                event: { value: buildCartVariable() },
+                event: { value: buildCartVariable(removedSku) },
             });
         }
 
