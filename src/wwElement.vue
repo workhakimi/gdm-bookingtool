@@ -455,11 +455,24 @@ export default {
             bookingTitle.value.trim().length > 0 &&
             selectedPIC.value != null
         );
-        const subtitle = computed(() =>
-            isConnected.value && connectedBookingNumber.value
+        const hasPendingTitleOrPicEdits = computed(() => {
+            if (!isConnected.value || !cartHeader.value?.id) return false;
+            const savedTitle = (getBookingTitle(cartHeader.value) || '').trim();
+            const currentTitle = bookingTitle.value.trim();
+            const savedPicId = cartHeader.value?.pic_id ?? null;
+            const titleEdited = currentTitle !== savedTitle;
+            const picEdited = selectedPIC.value !== savedPicId;
+            return titleEdited || picEdited;
+        });
+        const subtitle = computed(() => {
+            const base = isConnected.value && connectedBookingNumber.value
                 ? `Modifying Order #${connectedBookingNumber.value}`
-                : 'Drafting New Order'
-        );
+                : 'Drafting New Order';
+            if (hasPendingTitleOrPicEdits.value) {
+                return `${base} · Title/PIC will be updated on submit`;
+            }
+            return base;
+        });
         const itemCount = computed(() => cartItems.value.length);
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
