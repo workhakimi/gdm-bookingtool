@@ -150,7 +150,7 @@
                                 class="select-option"
                                 @mousedown.prevent="selectBooking(h)"
                             >
-                                {{ h.booking_number ?? h.BookingNumber }} &bull; {{ h.booking_title ?? h.BookingTitle }}
+                                {{ getBookingNumber(h) }} &bull; {{ getBookingTitle(h) }}
                             </li>
                         </ul>
                     </div>
@@ -295,7 +295,7 @@
                 {{ confirmLabel }}
             </button>
             <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
-                Booked as <span class="booking-success-var">{{ cartHeader?.booking_number ?? cartHeader?.BookingNumber }}</span> - <span class="booking-success-var">{{ cartHeader?.booking_title ?? cartHeader?.BookingTitle }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
+                Booked as <span class="booking-success-var">{{ getBookingNumber(cartHeader) }}</span> - <span class="booking-success-var">{{ getBookingTitle(cartHeader) }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
             </p>
         </div>
     </div>
@@ -305,6 +305,13 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 
 const EMPTY_HEADER = { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null };
+
+function getBookingNumber(header) {
+    return header?.booking_number ?? header?.BookingNumber ?? header?.bookingnumber ?? null;
+}
+function getBookingTitle(header) {
+    return header?.booking_title ?? header?.BookingTitle ?? header?.bookingtitle ?? null;
+}
 
 export default {
     props: {
@@ -335,9 +342,9 @@ export default {
             if (!h || typeof h !== 'object') return { ...EMPTY_HEADER };
             return {
                 id: h.id ?? null,
-                booking_number: h.booking_number ?? h.BookingNumber ?? null,
+                booking_number: getBookingNumber(h),
                 created_at: h.created_at ?? null,
-                booking_title: h.booking_title ?? h.BookingTitle ?? null,
+                booking_title: getBookingTitle(h),
                 pic_id: h.pic_id ?? h.PIC_ID ?? null,
                 updated_at: h.updated_at ?? null,
             };
@@ -390,14 +397,14 @@ export default {
 
         // ── Derived state from variable ──
         const isConnected = computed(() => !!cartHeader.value?.id);
-        const connectedBookingNumber = computed(() => cartHeader.value?.booking_number || null);
+        const connectedBookingNumber = computed(() => getBookingNumber(cartHeader.value) || null);
 
         // ── Sync title / PIC from header when header ID changes ──
         watch(cartHeader, (header) => {
             const currentId = header?.id || null;
             if (currentId === lastSyncedHeaderId.value) return;
 
-            bookingTitle.value = header?.booking_title || '';
+            bookingTitle.value = getBookingTitle(header) || '';
             if (header?.pic_id) {
                 selectedPIC.value = header.pic_id;
                 const tm = resolvedTeammates.value.find(t => t.id === header.pic_id);
@@ -406,7 +413,7 @@ export default {
                 selectedPIC.value = null;
                 selectedPICName.value = '';
             }
-            selectedBookingOption.value = (currentId && header?.booking_number) ? { ...header } : null;
+            selectedBookingOption.value = (currentId && getBookingNumber(header)) ? { ...header } : null;
             lastSyncedHeaderId.value = currentId;
         }, { immediate: true, deep: true });
 
@@ -481,7 +488,7 @@ export default {
         });
         const bookingDropdownDisplay = computed(() =>
             selectedBookingOption.value
-                ? `${selectedBookingOption.value.booking_number ?? selectedBookingOption.value.BookingNumber} • ${selectedBookingOption.value.booking_title ?? selectedBookingOption.value.BookingTitle}`
+                ? `${getBookingNumber(selectedBookingOption.value)} • ${getBookingTitle(selectedBookingOption.value)}`
                 : 'Select Booking ID...'
         );
         const picDropdownDisplay = computed(() =>
@@ -509,9 +516,9 @@ export default {
             return {
                 booking_header: {
                     id: cartHeader.value?.id || null,
-                    booking_number: (cartHeader.value?.booking_number ?? cartHeader.value?.BookingNumber) || null,
+                    booking_number: getBookingNumber(cartHeader.value) || null,
                     created_at: cartHeader.value?.created_at || null,
-                    booking_title: bookingTitle.value || (cartHeader.value?.booking_title ?? cartHeader.value?.BookingTitle) || null,
+                    booking_title: bookingTitle.value || getBookingTitle(cartHeader.value) || null,
                     pic_id: (selectedPIC.value ?? cartHeader.value?.pic_id ?? cartHeader.value?.PIC_ID) || null,
                 },
                 booking_items: items,
@@ -595,9 +602,9 @@ export default {
                     value: {
                         booking_header: {
                             id: header.id,
-                            booking_number: header.booking_number ?? header.BookingNumber,
+                            booking_number: getBookingNumber(header),
                             created_at: header.created_at,
-                            booking_title: header.booking_title ?? header.BookingTitle,
+                            booking_title: getBookingTitle(header),
                             pic_id: header.pic_id ?? header.PIC_ID,
                         },
                         booking_items: items.map(i => ({
@@ -642,9 +649,9 @@ export default {
                     value: {
                         booking_header: {
                             id: h.id || null,
-                            booking_number: (h.booking_number ?? h.BookingNumber) || null,
+                            booking_number: getBookingNumber(h) || null,
                             created_at: h.created_at || null,
-                            booking_title: bookingTitle.value || (h.booking_title ?? h.BookingTitle) || null,
+                            booking_title: bookingTitle.value || getBookingTitle(h) || null,
                             pic_id: (selectedPIC.value ?? h.pic_id ?? h.PIC_ID) || null,
                         },
                         booking_items: [],
@@ -680,9 +687,9 @@ export default {
             const snapHeader = snapshot.booking_header ?? snapshot.Booking_Header ?? {};
             const header = {
                 id: snapHeader.id ?? null,
-                booking_number: snapHeader.booking_number ?? snapHeader.BookingNumber ?? null,
+                booking_number: getBookingNumber(snapHeader) ?? null,
                 created_at: editing ? (cartHeader.value?.created_at || null) : now,
-                booking_title: snapHeader.booking_title ?? snapHeader.BookingTitle ?? bookingTitle.value ?? null,
+                booking_title: getBookingTitle(snapHeader) ?? bookingTitle.value ?? null,
                 pic_id: snapHeader.pic_id ?? snapHeader.PIC_ID ?? selectedPIC.value ?? null,
             };
             if (!editing) {
@@ -757,6 +764,8 @@ export default {
         onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside));
 
         return {
+            getBookingNumber,
+            getBookingTitle,
             resolvedCart,
             resolvedBookingHeaders,
             resolvedTeammates,
