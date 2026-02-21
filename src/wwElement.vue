@@ -715,7 +715,7 @@ export default {
                 event: {
                     value: {
                         staging_status: 'Sending',
-                        isEdit: editing,
+                        is_edit: editing,
                         booking_header: header,
                         booking_items: bookingItemsAsBooked,
                         updated_at: now,

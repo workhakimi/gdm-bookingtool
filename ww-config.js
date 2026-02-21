@@ -100,7 +100,7 @@ export default {
             event: {
                 value: {
                     staging_status: 'Sending',
-                    isEdit: false,
+                    is_edit: false,
                     booking_header: { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null },
                     booking_items: [],
                     updated_at: null,
