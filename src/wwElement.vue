@@ -140,17 +140,30 @@
                             <span class="select-text">{{ bookingDropdownDisplay }}</span>
                             <span class="select-dots">···</span>
                         </button>
-                        <ul v-if="bookingDropdownOpen" class="select-options">
+                        <ul v-if="bookingDropdownOpen" class="select-options select-options--with-search">
+                            <li class="select-option select-search-wrap" @mousedown.prevent>
+                                <input
+                                    ref="bookingSearchInput"
+                                    v-model="bookingSearchQuery"
+                                    type="text"
+                                    class="select-search-input"
+                                    placeholder="Search by title or booking number..."
+                                    @keydown.stop
+                                />
+                            </li>
                             <li class="select-option select-option--placeholder" @mousedown.prevent="selectBooking(null)">
                                 Select Booking ID...
                             </li>
                             <li
-                                v-for="h in resolvedBookingHeaders"
+                                v-for="h in filteredBookingHeaders"
                                 :key="h.id"
                                 class="select-option"
                                 @mousedown.prevent="selectBooking(h)"
                             >
                                 {{ getBookingNumber(h) }} &bull; {{ getBookingTitle(h) }}
+                            </li>
+                            <li v-if="filteredBookingHeaders.length === 0 && bookingSearchQuery.trim()" class="select-option select-option--empty">
+                                No matches
                             </li>
                         </ul>
                     </div>
@@ -302,7 +315,7 @@
 </template>
 
 <script>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
 const EMPTY_HEADER = { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null };
 
@@ -330,6 +343,16 @@ export default {
         const resolvedBookingHeaders = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.bookingHeaders) || []
         );
+        const filteredBookingHeaders = computed(() => {
+            const list = resolvedBookingHeaders.value;
+            const q = bookingSearchQuery.value.trim().toLowerCase();
+            if (!q) return list;
+            return list.filter(h => {
+                const num = (getBookingNumber(h) || '').toLowerCase();
+                const title = (getBookingTitle(h) || '').toLowerCase();
+                return num.includes(q) || title.includes(q);
+            });
+        });
         const bookingItemsData = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.bookingItems) || []
         );
@@ -387,6 +410,8 @@ export default {
 
         const selectedBookingOption = ref(null);
         const bookingDropdownOpen = ref(false);
+        const bookingSearchQuery = ref('');
+        const bookingSearchInput = ref(null);
         const picDropdownOpen = ref(false);
 
         const quickAddInput = ref('');
@@ -741,10 +766,15 @@ export default {
             if (isSending.value || isConnected.value) return;
             bookingDropdownOpen.value = !bookingDropdownOpen.value;
             picDropdownOpen.value = false;
+            if (bookingDropdownOpen.value) {
+                bookingSearchQuery.value = '';
+                nextTick(() => bookingSearchInput.value?.focus());
+            }
         }
         function selectBooking(header) {
             selectedBookingOption.value = header;
             bookingDropdownOpen.value = false;
+            bookingSearchQuery.value = '';
         }
         function togglePICDropdown() {
             if (isSending.value) return;
@@ -780,6 +810,9 @@ export default {
             getBookingTitle,
             resolvedCart,
             resolvedBookingHeaders,
+            filteredBookingHeaders,
+            bookingSearchQuery,
+            bookingSearchInput,
             resolvedTeammates,
             hasOverbooking,
             canConfirm,
@@ -1214,6 +1247,31 @@ $transition: 0.15s ease;
     color: $gray-400;
     font-weight: 500;
     &:hover { background: rgba($blue, 0.04); }
+}
+.select-option--empty {
+    color: $gray-400;
+    cursor: default;
+    font-style: italic;
+    &:hover { background: transparent; }
+}
+.select-search-wrap {
+    padding: 6px 8px;
+    cursor: default;
+    &:hover { background: transparent; }
+}
+.select-search-input {
+    width: 100%;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid $gray-200;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: $gray-900;
+    background: $white;
+    outline: none;
+    &::placeholder { color: $gray-400; }
+    &:focus { border-color: $blue; }
 }
 .custom-select--icon .select-trigger {
     padding-left: 10px;
