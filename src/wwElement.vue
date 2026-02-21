@@ -277,11 +277,11 @@
                 class="btn-confirm"
                 :class="{
                     'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
-                    'btn-confirm--disabled': !canConfirm && !stagingStatus,
+                    'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart,
                     'btn-confirm--sending': stagingStatus === 'Sending',
                     'btn-confirm--success': stagingStatus === 'Successful',
                 }"
-                :disabled="stagingStatus === 'Sending' || (!canConfirm && stagingStatus !== 'Successful')"
+                :disabled="stagingStatus === 'Sending' || (stagingStatus !== 'Successful' && !canConfirm && !isConnectedWithEmptyCart)"
                 @click="onConfirmClick"
                 type="button"
             >
@@ -480,6 +480,9 @@ export default {
             bookingTitle.value.trim().length > 0 &&
             selectedPIC.value != null
         );
+        const isConnectedWithEmptyCart = computed(() =>
+            isConnected.value && cartItems.value.length === 0
+        );
         const subtitle = computed(() =>
             isConnected.value && connectedBookingNumber.value
                 ? `Modifying Order #${connectedBookingNumber.value}`
@@ -489,6 +492,7 @@ export default {
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
+            if (isConnectedWithEmptyCart.value) return 'Delete Booking';
             return hasOverbooking.value && canConfirm.value ? 'Proceed (Overbooked)' : 'Confirm Booking';
         });
         const successTeammateName = computed(() => {
@@ -717,6 +721,24 @@ export default {
                 });
                 return;
             }
+            if (isConnectedWithEmptyCart.value) {
+                const h = cartHeader.value || {};
+                emit('trigger-event', {
+                    name: 'deleteBooking',
+                    event: {
+                        value: {
+                            booking_header: {
+                                id: h.id ?? null,
+                                bookingnumber: getBookingNumber(h) ?? null,
+                                created_at: h.created_at ?? null,
+                                bookingtitle: getBookingTitle(h) ?? null,
+                                pic_id: h.pic_id ?? null,
+                            },
+                        },
+                    },
+                });
+                return;
+            }
             confirmBooking();
         }
 
@@ -833,6 +855,7 @@ export default {
             resolvedTeammates,
             hasOverbooking,
             canConfirm,
+            isConnectedWithEmptyCart,
             subtitle,
             itemCount,
             confirmLabel,

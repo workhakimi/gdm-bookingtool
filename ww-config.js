@@ -120,6 +120,16 @@ export default {
             },
             default: false,
         },
+        {
+            name: 'deleteBooking',
+            label: { en: 'On Delete Booking' },
+            event: {
+                value: {
+                    booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
+                },
+            },
+            default: false,
+        },
     ],
     properties: {
         referenceData: {
