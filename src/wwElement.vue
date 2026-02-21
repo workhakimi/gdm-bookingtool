@@ -93,7 +93,7 @@
                                 class="qty-input"
                                 :class="{ 'is-over': item.isOverLimit }"
                                 :value="item.quantity"
-                                min="0"
+                                min="1"
                                 :disabled="isSending"
                                 @change="updateQuantity(idx, $event.target.value)"
                             />
@@ -281,8 +281,8 @@
                     'btn-confirm--sending': stagingStatus === 'Sending',
                     'btn-confirm--success': stagingStatus === 'Successful',
                 }"
-                :disabled="stagingStatus === 'Sending' || stagingStatus === 'Successful' || !canConfirm"
-                @click="confirmBooking"
+                :disabled="stagingStatus === 'Sending' || (!canConfirm && stagingStatus !== 'Successful')"
+                @click="onConfirmClick"
                 type="button"
             >
                 <!-- Overbooked warning icon -->
@@ -570,7 +570,7 @@ export default {
             /* wwEditor:end */
             if (isSending.value) return;
 
-            const qty = Math.max(0, parseInt(val) || 0);
+            const qty = Math.max(1, parseInt(val) || 1);
             const item = cartItems.value[index];
             if (!item) return;
             const itemSku = item.sku;
@@ -701,6 +701,23 @@ export default {
             const t = Date.now();
             const digits = (t % 1e6).toString().padStart(6, '0');
             return `BN-${digits}`;
+        }
+
+        function onConfirmClick() {
+            if (stagingStatus.value === 'Successful') {
+                const payload = buildCartVariable();
+                emit('trigger-event', {
+                    name: 'successDismiss',
+                    event: {
+                        value: {
+                            ...payload,
+                            staging_status: null,
+                        },
+                    },
+                });
+                return;
+            }
+            confirmBooking();
         }
 
         function confirmBooking() {
@@ -845,6 +862,7 @@ export default {
             connectBooking,
             disconnectBooking,
             emptyCart,
+            onConfirmClick,
             confirmBooking,
             toggleBookingDropdown,
             selectBooking,

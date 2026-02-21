@@ -108,6 +108,18 @@ export default {
             },
             default: true,
         },
+        {
+            name: 'successDismiss',
+            label: { en: 'On Success Dismiss' },
+            event: {
+                value: {
+                    booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
+                    booking_items: [],
+                    staging_status: null,
+                },
+            },
+            default: false,
+        },
     ],
     properties: {
         referenceData: {
