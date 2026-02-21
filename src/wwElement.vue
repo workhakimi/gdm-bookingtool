@@ -331,6 +331,25 @@ export default {
         );
 
         // ── Resolve cartData as a structured object (normalized to lowercase keys) ──
+        function normalizeHeader(h) {
+            if (!h || typeof h !== 'object') return { ...EMPTY_HEADER };
+            return {
+                id: h.id ?? null,
+                booking_number: h.booking_number ?? h.BookingNumber ?? null,
+                created_at: h.created_at ?? null,
+                booking_title: h.booking_title ?? h.BookingTitle ?? null,
+                pic_id: h.pic_id ?? h.PIC_ID ?? null,
+                updated_at: h.updated_at ?? null,
+            };
+        }
+        function normalizeItem(it) {
+            if (!it || typeof it !== 'object') return { sku: null, quantity: 0, status: null };
+            return {
+                sku: it.sku ?? it.SKU ?? null,
+                quantity: it.quantity ?? it.Quantity ?? 0,
+                status: it.status ?? it.Status ?? null,
+            };
+        }
         const cartDataObj = computed(() => {
             const raw = props.content?.cartData;
             if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -342,8 +361,8 @@ export default {
             const items = src.booking_items ?? src.Booking_Items;
             if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [] };
             return {
-                booking_header: h || { ...EMPTY_HEADER },
-                booking_items: items || [],
+                booking_header: normalizeHeader(h) || { ...EMPTY_HEADER },
+                booking_items: Array.isArray(items) ? items.map(normalizeItem) : [],
                 staging_status: src.staging_status ?? src.StagingStatus ?? null,
                 updated_at: src.updated_at,
             };
