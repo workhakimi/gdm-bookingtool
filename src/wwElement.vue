@@ -278,6 +278,7 @@
                 :class="{
                     'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
                     'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessDeleted,
+                    'btn-confirm--delete': isConnectedWithEmptyCart,
                     'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Deleting',
                     'btn-confirm--success': stagingStatus === 'Successful',
                     'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
@@ -1527,6 +1528,11 @@ $transition: 0.15s ease;
         color: $gray-400;
         cursor: not-allowed;
         &:hover { background: $gray-200; }
+    }
+    &.btn-confirm--delete {
+        background: $red;
+        color: $white;
+        &:hover { background: $red-dark; }
     }
     &.btn-confirm--sending {
         background: #111827;
