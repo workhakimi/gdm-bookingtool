@@ -388,8 +388,13 @@ export default {
             }
             const resolved = wwLib.wwUtils.getDataFromCollection(raw);
             const src = (resolved && typeof resolved === 'object' && !Array.isArray(resolved)) ? resolved : raw;
-            const h = src.booking_header;
-            const items = src.booking_items;
+            let h = src.booking_header;
+            let items = src.booking_items;
+            // If bound variable is header-only (e.g. cart was set to a single record), treat it as cart with that header
+            if (!h && !items && (src.id != null || src.bookingnumber != null)) {
+                h = src;
+                items = [];
+            }
             if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [], staging_status: src.staging_status ?? null, updated_at: src.updated_at, deleted_bn: src.deleted_bn ?? null };
             return {
                 booking_header: normalizeHeader(h) || { ...EMPTY_HEADER },
@@ -742,7 +747,6 @@ export default {
                 return;
             }
             if (isConnectedWithEmptyCart.value) {
-                const now = new Date().toISOString();
                 const h = cartHeader.value || {};
                 const header = {
                     id: h.id ?? null,
@@ -756,10 +760,8 @@ export default {
                     event: {
                         value: {
                             staging_status: 'Deleting',
-                            is_edit: true,
-                            booking_header: header,
                             booking_items: [],
-                            updated_at: now,
+                            booking_header: header,
                         },
                     },
                 });

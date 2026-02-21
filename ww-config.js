@@ -126,10 +126,8 @@ export default {
             event: {
                 value: {
                     staging_status: 'Deleting',
-                    is_edit: true,
-                    booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
                     booking_items: [],
-                    updated_at: null,
+                    booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
                 },
             },
             default: false,
