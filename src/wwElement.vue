@@ -209,7 +209,7 @@
 
             <!-- Booking Title -->
             <div class="rp-section">
-                <label class="rp-label">Booking Title</label>
+                <label class="rp-label">Booking Title<span v-if="bookingTitleWillUpdate" class="label-updating"> (Updating)</span></label>
                 <div class="input-icon-wrap">
                     <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -228,7 +228,7 @@
 
             <!-- Person In Charge -->
             <div class="rp-section">
-                <label class="rp-label">Person In Charge</label>
+                <label class="rp-label">Person In Charge<span v-if="picWillUpdate" class="label-updating"> (Updating)</span></label>
                 <div class="custom-select custom-select--icon" ref="picSelectEl">
                     <button
                         type="button"
@@ -455,24 +455,11 @@ export default {
             bookingTitle.value.trim().length > 0 &&
             selectedPIC.value != null
         );
-        const hasPendingTitleOrPicEdits = computed(() => {
-            if (!isConnected.value || !cartHeader.value?.id) return false;
-            const savedTitle = (getBookingTitle(cartHeader.value) || '').trim();
-            const currentTitle = bookingTitle.value.trim();
-            const savedPicId = cartHeader.value?.pic_id ?? null;
-            const titleEdited = currentTitle !== savedTitle;
-            const picEdited = selectedPIC.value !== savedPicId;
-            return titleEdited || picEdited;
-        });
-        const subtitle = computed(() => {
-            const base = isConnected.value && connectedBookingNumber.value
+        const subtitle = computed(() =>
+            isConnected.value && connectedBookingNumber.value
                 ? `Modifying Order #${connectedBookingNumber.value}`
-                : 'Drafting New Order';
-            if (hasPendingTitleOrPicEdits.value) {
-                return `${base} · Title/PIC will be updated on submit`;
-            }
-            return base;
-        });
+                : 'Drafting New Order'
+        );
         const itemCount = computed(() => cartItems.value.length);
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
@@ -507,6 +494,18 @@ export default {
         const picDropdownDisplay = computed(() =>
             selectedPICName.value || 'Select Teammate...'
         );
+        const bookingTitleWillUpdate = computed(() => {
+            if (!isConnected.value) return false;
+            const fromHeader = (getBookingTitle(cartHeader.value) || '').trim();
+            const current = bookingTitle.value.trim();
+            return current !== fromHeader;
+        });
+        const picWillUpdate = computed(() => {
+            if (!isConnected.value) return false;
+            const fromHeader = cartHeader.value?.pic_id ?? null;
+            const current = selectedPIC.value ?? null;
+            return current !== fromHeader;
+        });
 
         // ── Helper: build full cartData snapshot from the variable ──
         function buildCartVariable({ excludeSku, quantityOverrides } = {}) {
@@ -789,6 +788,8 @@ export default {
             confirmLabel,
             bookingDropdownDisplay,
             picDropdownDisplay,
+            bookingTitleWillUpdate,
+            picWillUpdate,
             isConnected,
             stagingStatus,
             isSending,
@@ -1123,6 +1124,10 @@ $transition: 0.15s ease;
     font-size: 12px;
     font-weight: 600;
     color: $gray-700;
+}
+.label-updating {
+    color: #b45309;
+    font-weight: 600;
 }
 .rp-label--caps {
     font-size: 12px;
