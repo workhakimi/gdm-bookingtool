@@ -253,7 +253,7 @@
                             class="select-option"
                             @mousedown.prevent="selectPIC(t)"
                         >
-                            {{ t.name ?? t.Name }}
+                            {{ t.name }}
                         </li>
                     </ul>
                 </div>
@@ -307,10 +307,10 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 const EMPTY_HEADER = { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null };
 
 function getBookingNumber(header) {
-    return header?.booking_number ?? header?.BookingNumber ?? header?.bookingnumber ?? null;
+    return header?.booking_number ?? header?.bookingnumber ?? null;
 }
 function getBookingTitle(header) {
-    return header?.booking_title ?? header?.BookingTitle ?? header?.bookingtitle ?? null;
+    return header?.booking_title ?? header?.bookingtitle ?? null;
 }
 
 export default {
@@ -345,16 +345,16 @@ export default {
                 booking_number: getBookingNumber(h),
                 created_at: h.created_at ?? null,
                 booking_title: getBookingTitle(h),
-                pic_id: h.pic_id ?? h.PIC_ID ?? null,
+                pic_id: h.pic_id ?? null,
                 updated_at: h.updated_at ?? null,
             };
         }
         function normalizeItem(it) {
             if (!it || typeof it !== 'object') return { sku: null, quantity: 0, status: null };
             return {
-                sku: it.sku ?? it.SKU ?? null,
-                quantity: it.quantity ?? it.Quantity ?? 0,
-                status: it.status ?? it.Status ?? null,
+                sku: it.sku ?? null,
+                quantity: it.quantity ?? 0,
+                status: it.status ?? null,
             };
         }
         const cartDataObj = computed(() => {
@@ -364,13 +364,13 @@ export default {
             }
             const resolved = wwLib.wwUtils.getDataFromCollection(raw);
             const src = (resolved && typeof resolved === 'object' && !Array.isArray(resolved)) ? resolved : raw;
-            const h = src.booking_header ?? src.Booking_Header;
-            const items = src.booking_items ?? src.Booking_Items;
+            const h = src.booking_header;
+            const items = src.booking_items;
             if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [] };
             return {
                 booking_header: normalizeHeader(h) || { ...EMPTY_HEADER },
                 booking_items: Array.isArray(items) ? items.map(normalizeItem) : [],
-                staging_status: src.staging_status ?? src.StagingStatus ?? null,
+                staging_status: src.staging_status ?? null,
                 updated_at: src.updated_at,
             };
         });
@@ -408,7 +408,7 @@ export default {
             if (header?.pic_id) {
                 selectedPIC.value = header.pic_id;
                 const tm = resolvedTeammates.value.find(t => t.id === header.pic_id);
-                selectedPICName.value = tm ? (tm.name ?? tm.Name) : '';
+                selectedPICName.value = tm ? tm.name : '';
             } else {
                 selectedPIC.value = null;
                 selectedPICName.value = '';
@@ -420,7 +420,7 @@ export default {
         // ── Reference data lookup ──
         const refLookup = computed(() => {
             const map = {};
-            referenceData.value.forEach(r => { map[r.sku || r.SKU] = r; });
+            referenceData.value.forEach(r => { map[r.sku] = r; });
             return map;
         });
 
@@ -428,19 +428,19 @@ export default {
         const resolvedCart = computed(() => {
             const bufferOn = !!props.content?.buffer;
             return cartItems.value.map(i => {
-                const skuKey = i.sku ?? i.SKU;
+                const skuKey = i.sku;
                 const ref = refLookup.value[skuKey];
-                const snt = ref ? (Number(ref.snt ?? ref.SNT) || 0) : 0;
+                const snt = ref ? (Number(ref.snt) || 0) : 0;
                 const available = bufferOn ? Math.max(0, snt - 25) : snt;
-                const qty = (i.quantity ?? i.Quantity) != null ? (i.quantity ?? i.Quantity) : 0;
+                const qty = i.quantity != null ? i.quantity : 0;
                 return {
                     sku: skuKey,
                     quantity: qty,
-                    statusDisplay: (i.status ?? i.Status) && String(i.status ?? i.Status).trim() ? (i.status ?? i.Status) : 'Carted',
-                    model: ref ? (ref.model ?? ref.Model) : 'Unknown Item',
-                    color: ref ? (ref.color ?? ref.Color) : '-',
-                    size: ref ? (ref.size ?? ref.Size) : '-',
-                    imageLink: ref ? (ref.imagelink ?? ref.image_link ?? ref.ImageLink) : null,
+                    statusDisplay: i.status && String(i.status).trim() ? i.status : 'Carted',
+                    model: ref ? ref.model : 'Unknown Item',
+                    color: ref ? ref.color : '-',
+                    size: ref ? ref.size : '-',
+                    imageLink: ref ? (ref.image_link ?? ref.imagelink) : null,
                     available,
                     isOverLimit: qty > available,
                     isUnknown: !ref,
@@ -471,7 +471,7 @@ export default {
             const pid = cartHeader.value?.pic_id;
             if (pid == null) return '';
             const t = resolvedTeammates.value.find(t => t.id === pid);
-            return t ? (t.name ?? t.Name) : '';
+            return t ? t.name : '';
         });
         const formattedBookingTime = computed(() => {
             if (stagingStatus.value !== 'Successful') return '';
@@ -498,17 +498,17 @@ export default {
         // ── Helper: build full cartData snapshot from the variable ──
         function buildCartVariable({ excludeSku, quantityOverrides } = {}) {
             let items = cartItems.value.map(i => ({
-                sku: i.sku ?? i.SKU,
-                quantity: (i.quantity ?? i.Quantity) != null ? (i.quantity ?? i.Quantity) : 0,
-                status: i.status ?? i.Status ?? null,
+                sku: i.sku,
+                quantity: i.quantity != null ? i.quantity : 0,
+                status: i.status ?? null,
             }));
 
             if (excludeSku) {
-                items = items.filter(i => (i.sku ?? i.SKU) !== excludeSku);
+                items = items.filter(i => i.sku !== excludeSku);
             }
             if (quantityOverrides) {
                 for (const sku in quantityOverrides) {
-                    const item = items.find(i => (i.sku ?? i.SKU) === sku);
+                    const item = items.find(i => i.sku === sku);
                     if (item) item.quantity = quantityOverrides[sku];
                 }
             }
@@ -519,7 +519,7 @@ export default {
                     booking_number: getBookingNumber(cartHeader.value) || null,
                     created_at: cartHeader.value?.created_at || null,
                     booking_title: bookingTitle.value || getBookingTitle(cartHeader.value) || null,
-                    pic_id: (selectedPIC.value ?? cartHeader.value?.pic_id ?? cartHeader.value?.PIC_ID) || null,
+                    pic_id: (selectedPIC.value ?? cartHeader.value?.pic_id) || null,
                 },
                 booking_items: items,
             };
@@ -536,7 +536,7 @@ export default {
             const qty = Math.max(0, parseInt(val) || 0);
             const item = cartItems.value[index];
             if (!item) return;
-            const itemSku = item.sku ?? item.SKU;
+            const itemSku = item.sku;
 
             emit('trigger-event', {
                 name: 'quantityChange',
@@ -555,7 +555,7 @@ export default {
 
             emit('trigger-event', {
                 name: 'removeFromCart',
-                event: { value: buildCartVariable({ excludeSku: item.sku ?? item.SKU }) },
+                event: { value: buildCartVariable({ excludeSku: item.sku }) },
             });
         }
 
@@ -594,7 +594,7 @@ export default {
 
             const header = selectedBookingOption.value;
             const headerId = header.id;
-            const items = bookingItemsData.value.filter(i => (i.header_id ?? i.HeaderID) === headerId);
+            const items = bookingItemsData.value.filter(i => (i.header_id ?? i.headerid) === headerId);
 
             emit('trigger-event', {
                 name: 'loadBooking',
@@ -605,12 +605,12 @@ export default {
                             booking_number: getBookingNumber(header),
                             created_at: header.created_at,
                             booking_title: getBookingTitle(header),
-                            pic_id: header.pic_id ?? header.PIC_ID,
+                            pic_id: header.pic_id,
                         },
                         booking_items: items.map(i => ({
-                            sku: i.sku ?? i.SKU,
-                            quantity: i.quantity ?? i.Quantity,
-                            status: i.status ?? i.Status,
+                            sku: i.sku,
+                            quantity: i.quantity ?? 0,
+                            status: i.status ?? null,
                         })),
                     },
                 },
@@ -628,7 +628,7 @@ export default {
                     value: {
                         booking_header: { ...EMPTY_HEADER },
                         booking_items: cartItems.value.map(i => ({
-                            sku: i.sku ?? i.SKU,
+                            sku: i.sku,
                             quantity: 0,
                             status: null,
                         })),
@@ -652,7 +652,7 @@ export default {
                             booking_number: getBookingNumber(h) || null,
                             created_at: h.created_at || null,
                             booking_title: bookingTitle.value || getBookingTitle(h) || null,
-                            pic_id: (selectedPIC.value ?? h.pic_id ?? h.PIC_ID) || null,
+                            pic_id: (selectedPIC.value ?? h.pic_id) || null,
                         },
                         booking_items: [],
                     },
@@ -677,20 +677,20 @@ export default {
             const snapshot = buildCartVariable();
             const editing = isConnected.value;
 
-            const itemsSnapshot = snapshot.booking_items ?? snapshot.Booking_Items ?? [];
+            const itemsSnapshot = snapshot.booking_items ?? [];
             const bookingItemsAsBooked = itemsSnapshot.map(i => ({
-                sku: i.sku ?? i.SKU,
-                quantity: i.quantity ?? i.Quantity,
+                sku: i.sku,
+                quantity: i.quantity ?? 0,
                 status: 'Booked',
             }));
 
-            const snapHeader = snapshot.booking_header ?? snapshot.Booking_Header ?? {};
+            const snapHeader = snapshot.booking_header ?? {};
             const header = {
                 id: snapHeader.id ?? null,
                 booking_number: getBookingNumber(snapHeader) ?? null,
                 created_at: editing ? (cartHeader.value?.created_at || null) : now,
                 booking_title: getBookingTitle(snapHeader) ?? bookingTitle.value ?? null,
-                pic_id: snapHeader.pic_id ?? snapHeader.PIC_ID ?? selectedPIC.value ?? null,
+                pic_id: snapHeader.pic_id ?? selectedPIC.value ?? null,
             };
             if (!editing) {
                 header.id = null;
@@ -742,7 +742,7 @@ export default {
         function selectPIC(teammate) {
             if (teammate) {
                 selectedPIC.value = teammate.id;
-                selectedPICName.value = teammate.name ?? teammate.Name;
+                selectedPICName.value = teammate.name;
             } else {
                 selectedPIC.value = null;
                 selectedPICName.value = '';

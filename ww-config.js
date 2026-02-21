@@ -119,7 +119,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of { sku, model, color, size, snt, imagelink } (image_link, PascalCase also supported)',
+                tooltip: 'Array of { sku, model, color, size, snt, image_link }',
             },
             /* wwEditor:end */
         },
@@ -145,7 +145,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of { id, name } (Name also supported)',
+                tooltip: 'Array of { id, name }',
             },
             /* wwEditor:end */
         },
@@ -158,7 +158,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of { id, booking_number, booking_title, pic_id }',
+                tooltip: 'Array of { id, booking_number or bookingnumber, booking_title or bookingtitle, pic_id, created_at? }',
             },
             /* wwEditor:end */
         },
@@ -171,7 +171,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of { id, header_id, sku, quantity }',
+                tooltip: 'Array of { id, header_id or headerid, sku, quantity, status? }',
             },
             /* wwEditor:end */
         },
