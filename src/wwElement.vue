@@ -317,13 +317,13 @@
 <script>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
-const EMPTY_HEADER = { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null };
+const EMPTY_HEADER = { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null };
 
 function getBookingNumber(header) {
     return header?.bookingnumber ?? null;
 }
 function getBookingTitle(header) {
-    return header?.booking_title ?? header?.bookingtitle ?? null;
+    return header?.bookingtitle ?? null;
 }
 
 export default {
@@ -367,7 +367,7 @@ export default {
                 id: h.id ?? null,
                 bookingnumber: getBookingNumber(h),
                 created_at: h.created_at ?? null,
-                booking_title: getBookingTitle(h),
+                bookingtitle: getBookingTitle(h),
                 pic_id: h.pic_id ?? null,
                 updated_at: h.updated_at ?? null,
             };
@@ -555,7 +555,7 @@ export default {
                     id: cartHeader.value?.id || null,
                     bookingnumber: getBookingNumber(cartHeader.value) || null,
                     created_at: cartHeader.value?.created_at || null,
-                    booking_title: bookingTitle.value || getBookingTitle(cartHeader.value) || null,
+                    bookingtitle: bookingTitle.value || getBookingTitle(cartHeader.value) || null,
                     pic_id: (selectedPIC.value ?? cartHeader.value?.pic_id) || null,
                 },
                 booking_items: items,
@@ -641,7 +641,7 @@ export default {
                             id: header.id,
                             bookingnumber: getBookingNumber(header),
                             created_at: header.created_at,
-                            booking_title: getBookingTitle(header),
+                            bookingtitle: getBookingTitle(header),
                             pic_id: header.pic_id,
                         },
                         booking_items: items.map(i => ({
@@ -688,7 +688,7 @@ export default {
                             id: h.id || null,
                             bookingnumber: getBookingNumber(h) || null,
                             created_at: h.created_at || null,
-                            booking_title: bookingTitle.value || getBookingTitle(h) || null,
+                            bookingtitle: bookingTitle.value || getBookingTitle(h) || null,
                             pic_id: (selectedPIC.value ?? h.pic_id) || null,
                         },
                         booking_items: [],
@@ -726,7 +726,7 @@ export default {
                 id: snapHeader.id ?? null,
                 bookingnumber: getBookingNumber(snapHeader) ?? null,
                 created_at: editing ? (cartHeader.value?.created_at || null) : now,
-                booking_title: getBookingTitle(snapHeader) ?? bookingTitle.value ?? null,
+                bookingtitle: getBookingTitle(snapHeader) ?? bookingTitle.value ?? null,
                 pic_id: snapHeader.pic_id ?? selectedPIC.value ?? null,
             };
             if (!editing) {
