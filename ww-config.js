@@ -154,7 +154,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of { sku, model, color, size, snt, image_link }',
+                tooltip: 'Array of { sku, type, model, color, size, tags, snt, booked, balance, imagelink }',
             },
             /* wwEditor:end */
         },
@@ -211,7 +211,7 @@ export default {
             /* wwEditor:end */
         },
         buffer: {
-            label: { en: 'Buffer (SNT − 25)' },
+            label: { en: 'Buffer (Balance − 25)' },
             type: 'OnOff',
             section: 'settings',
             bindable: true,
@@ -219,7 +219,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'boolean',
-                tooltip: 'When on, available = SNT − 25. When off, available = SNT.',
+                tooltip: 'When on, available = balance − 25. When off, available = balance.',
             },
             /* wwEditor:end */
         },

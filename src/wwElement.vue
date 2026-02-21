@@ -1,5 +1,10 @@
 <template>
-    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-deleting': isDeleting, 'is-success-deleted': isSuccessDeleted }">
+    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-deleting': isDeleting, 'is-success': isSuccessState }">
+        <!-- Success overlay — darkens the tool, only confirm area is elevated above it -->
+        <transition name="overlay-fade">
+            <div v-if="isSuccessState" class="success-overlay"></div>
+        </transition>
+
         <!-- ═══════════ LEFT PANEL ═══════════ -->
         <div class="left-panel">
             <div class="cart-header">
@@ -127,6 +132,9 @@
                         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                     </svg>
                     existing booking
+                    <span class="connection-badge" :class="isConnected ? 'connection-badge--on' : ''">
+                        ({{ isConnected ? 'Connected' : 'Not Connected' }})
+                    </span>
                 </label>
                 <div class="existing-booking-row">
                     <div class="custom-select" ref="bookingSelectEl">
@@ -147,7 +155,7 @@
                                     v-model="bookingSearchQuery"
                                     type="text"
                                     class="select-search-input"
-                                    placeholder="Search by title or booking number..."
+                                    placeholder="Search by title, number, or PIC..."
                                     @keydown.stop
                                 />
                             </li>
@@ -160,7 +168,7 @@
                                 class="select-option"
                                 @mousedown.prevent="selectBooking(h)"
                             >
-                                {{ getBookingNumber(h) }} &bull; {{ getBookingTitle(h) }}
+                                {{ formatBookingOption(h) }}
                             </li>
                             <li v-if="filteredBookingHeaders.length === 0 && bookingSearchQuery.trim()" class="select-option select-option--empty">
                                 No matches
@@ -256,62 +264,81 @@
                         </svg>
                         <span class="select-text">{{ picDropdownDisplay }}</span>
                     </button>
-                    <ul v-if="picDropdownOpen" class="select-options">
+                    <ul v-if="picDropdownOpen" class="select-options select-options--with-search">
+                        <li class="select-option select-search-wrap" @mousedown.prevent>
+                            <input
+                                ref="picSearchInput"
+                                v-model="picSearchQuery"
+                                type="text"
+                                class="select-search-input"
+                                placeholder="Search teammate..."
+                                @keydown.stop
+                            />
+                        </li>
                         <li class="select-option select-option--placeholder" @mousedown.prevent="selectPIC(null)">
                             Select Teammate...
                         </li>
                         <li
-                            v-for="t in resolvedTeammates"
+                            v-for="t in filteredTeammates"
                             :key="t.id"
                             class="select-option"
                             @mousedown.prevent="selectPIC(t)"
                         >
                             {{ t.name }}
                         </li>
+                        <li v-if="filteredTeammates.length === 0 && picSearchQuery.trim()" class="select-option select-option--empty">
+                            No matches
+                        </li>
                     </ul>
                 </div>
             </div>
 
-            <!-- Confirm -->
-            <button
-                class="btn-confirm"
-                :class="{
-                    'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
-                    'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessDeleted,
-                    'btn-confirm--delete': isConnectedWithEmptyCart,
-                    'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Deleting',
-                    'btn-confirm--success': stagingStatus === 'Successful',
-                    'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
-                }"
-                :disabled="stagingStatus === 'Sending' || stagingStatus === 'Deleting' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Deleted' && !canConfirm && !isConnectedWithEmptyCart)"
-                @click="onConfirmClick"
-                type="button"
-            >
-                <!-- Overbooked warning icon -->
-                <svg v-if="hasOverbooking && canConfirm && !stagingStatus" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <!-- Sending / Deleting: clock -->
-                <svg v-else-if="stagingStatus === 'Sending' || stagingStatus === 'Deleting'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                </svg>
-                <!-- Success: check -->
-                <svg v-else-if="stagingStatus === 'Successful' || stagingStatus === 'Successful_Deleted'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 6L9 17l-5-5" />
-                </svg>
-                <!-- Normal clock/confirm icon -->
-                <svg v-else class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                </svg>
-                {{ confirmLabel }}
-            </button>
-            <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
-                Booked as <span class="booking-success-var">{{ getBookingNumber(cartHeader) }}</span> - <span class="booking-success-var">{{ getBookingTitle(cartHeader) }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
-            </p>
+            <!-- Confirm area — elevated above overlay in success state -->
+            <div class="confirm-area" :class="{ 'confirm-area--elevated': isSuccessState }">
+                <button
+                    class="btn-confirm"
+                    :class="{
+                        'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
+                        'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessState,
+                        'btn-confirm--delete': isConnectedWithEmptyCart && !isSuccessState,
+                        'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Deleting',
+                        'btn-confirm--success': stagingStatus === 'Successful',
+                        'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
+                    }"
+                    :disabled="stagingStatus === 'Sending' || stagingStatus === 'Deleting' || (!isSuccessState && !canConfirm && !isConnectedWithEmptyCart)"
+                    @click="onConfirmClick"
+                    type="button"
+                >
+                    <!-- Overbooked warning icon -->
+                    <svg v-if="hasOverbooking && canConfirm && !stagingStatus" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <!-- Sending / Deleting: clock -->
+                    <svg v-else-if="stagingStatus === 'Sending' || stagingStatus === 'Deleting'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <!-- Success: check -->
+                    <svg v-else-if="isSuccessState" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    <!-- Normal clock/confirm icon -->
+                    <svg v-else class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    {{ confirmLabel }}
+                </button>
+                <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
+                    Booked as <span class="booking-success-var">{{ getBookingNumber(cartHeader) }}</span> &mdash; <span class="booking-success-var">{{ getBookingTitle(cartHeader) }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
+                </p>
+                <p v-if="stagingStatus === 'Successful_Deleted'" class="booking-success-line">
+                    Deleted <span class="booking-success-var">{{ deletedBn }}</span>
+                </p>
+                <p v-if="isSuccessState" class="success-dismiss-hint">Click the button to continue</p>
+            </div>
         </div>
     </div>
 </template>
@@ -326,6 +353,21 @@ function getBookingNumber(header) {
 }
 function getBookingTitle(header) {
     return header?.bookingtitle ?? null;
+}
+
+function formatShortDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = d.getDate();
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    let hours = d.getHours();
+    const mins = d.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${day} ${month} ${year} ${hours}:${mins}${ampm}`;
 }
 
 export default {
@@ -345,16 +387,6 @@ export default {
         const resolvedBookingHeaders = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.bookingHeaders) || []
         );
-        const filteredBookingHeaders = computed(() => {
-            const list = resolvedBookingHeaders.value;
-            const q = bookingSearchQuery.value.trim().toLowerCase();
-            if (!q) return list;
-            return list.filter(h => {
-                const num = (getBookingNumber(h) || '').toLowerCase();
-                const title = (getBookingTitle(h) || '').toLowerCase();
-                return num.includes(q) || title.includes(q);
-            });
-        });
         const bookingItemsData = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.bookingItems) || []
         );
@@ -362,7 +394,49 @@ export default {
             wwLib.wwUtils.getDataFromCollection(props.content?.teammatesList) || []
         );
 
-        // ── Resolve cartData as a structured object (normalized to lowercase keys) ──
+        // ── PIC name lookup (needs resolvedTeammates) ──
+        function getBookingPICName(header) {
+            if (!header?.pic_id) return '';
+            const tm = resolvedTeammates.value.find(t => t.id === header.pic_id);
+            return tm ? tm.name : '';
+        }
+
+        function formatBookingOption(header) {
+            const parts = [
+                getBookingNumber(header),
+                getBookingTitle(header),
+                getBookingPICName(header),
+                formatShortDate(header?.created_at),
+            ].filter(Boolean);
+            return parts.join(' - ');
+        }
+
+        // ── Booking search ──
+        const bookingSearchQuery = ref('');
+        const bookingSearchInput = ref(null);
+        const filteredBookingHeaders = computed(() => {
+            const list = resolvedBookingHeaders.value;
+            const q = bookingSearchQuery.value.trim().toLowerCase();
+            if (!q) return list;
+            return list.filter(h => {
+                const num = (getBookingNumber(h) || '').toLowerCase();
+                const title = (getBookingTitle(h) || '').toLowerCase();
+                const picName = getBookingPICName(h).toLowerCase();
+                return num.includes(q) || title.includes(q) || picName.includes(q);
+            });
+        });
+
+        // ── PIC search ──
+        const picSearchQuery = ref('');
+        const picSearchInput = ref(null);
+        const filteredTeammates = computed(() => {
+            const list = resolvedTeammates.value;
+            const q = picSearchQuery.value.trim().toLowerCase();
+            if (!q) return list;
+            return list.filter(t => (t.name || '').toLowerCase().includes(q));
+        });
+
+        // ── Resolve cartData as a structured object ──
         function normalizeHeader(h) {
             if (!h || typeof h !== 'object') return { ...EMPTY_HEADER };
             return {
@@ -391,7 +465,6 @@ export default {
             const src = (resolved && typeof resolved === 'object' && !Array.isArray(resolved)) ? resolved : raw;
             let h = src.booking_header;
             let items = src.booking_items;
-            // If bound variable is header-only (e.g. cart was set to a single record), treat it as cart with that header
             if (!h && !items && (src.id != null || src.bookingnumber != null)) {
                 h = src;
                 items = [];
@@ -411,8 +484,8 @@ export default {
         const deletedBn = computed(() => cartDataObj.value?.deleted_bn ?? null);
         const isSending = computed(() => stagingStatus.value === 'Sending');
         const isDeleting = computed(() => stagingStatus.value === 'Deleting');
-        const isSuccessDeleted = computed(() => stagingStatus.value === 'Successful_Deleted');
-        const isInputsDisabled = computed(() => isSending.value || isDeleting.value || isSuccessDeleted.value);
+        const isSuccessState = computed(() => stagingStatus.value === 'Successful' || stagingStatus.value === 'Successful_Deleted');
+        const isInputsDisabled = computed(() => isSending.value || isDeleting.value || isSuccessState.value);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -422,8 +495,6 @@ export default {
 
         const selectedBookingOption = ref(null);
         const bookingDropdownOpen = ref(false);
-        const bookingSearchQuery = ref('');
-        const bookingSearchInput = ref(null);
         const picDropdownOpen = ref(false);
 
         const quickAddInput = ref('');
@@ -461,14 +532,14 @@ export default {
             return map;
         });
 
-        // ── Resolved cart — reads directly from the variable ──
+        // ── Resolved cart — uses balance for availability ──
         const resolvedCart = computed(() => {
             const bufferOn = !!props.content?.buffer;
             return cartItems.value.map(i => {
                 const skuKey = i.sku;
                 const ref = refLookup.value[skuKey];
-                const snt = ref ? (Number(ref.snt) || 0) : 0;
-                const available = bufferOn ? Math.max(0, snt - 25) : snt;
+                const balance = ref ? (Number(ref.balance) || 0) : 0;
+                const available = bufferOn ? Math.max(0, balance - 25) : balance;
                 const qty = i.quantity != null ? i.quantity : 0;
                 return {
                     sku: skuKey,
@@ -477,7 +548,7 @@ export default {
                     model: ref ? ref.model : 'Unknown Item',
                     color: ref ? ref.color : '-',
                     size: ref ? ref.size : '-',
-                    imageLink: ref ? (ref.image_link ?? ref.imagelink) : null,
+                    imageLink: ref ? (ref.imagelink ?? ref.image_link) : null,
                     available,
                     isOverLimit: qty > available,
                     isUnknown: !ref,
@@ -505,7 +576,7 @@ export default {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
             if (stagingStatus.value === 'Deleting') return 'Deleting Booking...';
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
-            if (stagingStatus.value === 'Successful_Deleted') return `Successfully Deleted Booking Number ${deletedBn.value || ''}, Click to Reset.`;
+            if (stagingStatus.value === 'Successful_Deleted') return 'Successfully Deleted';
             if (isConnectedWithEmptyCart.value) return 'Delete Booking';
             return hasOverbooking.value && canConfirm.value ? 'Proceed (Overbooked)' : 'Confirm Booking';
         });
@@ -529,11 +600,10 @@ export default {
             const time = d.toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' }).replace(/\s*([ap]m)/i, (_, m) => m.toLowerCase());
             return `${day} ${month} ${year}, ${time}`;
         });
-        const bookingDropdownDisplay = computed(() =>
-            selectedBookingOption.value
-                ? `${getBookingNumber(selectedBookingOption.value)} • ${getBookingTitle(selectedBookingOption.value)}`
-                : 'Select Booking ID...'
-        );
+        const bookingDropdownDisplay = computed(() => {
+            if (!selectedBookingOption.value) return 'Select Booking ID...';
+            return formatBookingOption(selectedBookingOption.value);
+        });
         const picDropdownDisplay = computed(() =>
             selectedPICName.value || 'Select Teammate...'
         );
@@ -848,6 +918,10 @@ export default {
             if (isInputsDisabled.value) return;
             picDropdownOpen.value = !picDropdownOpen.value;
             bookingDropdownOpen.value = false;
+            if (picDropdownOpen.value) {
+                picSearchQuery.value = '';
+                nextTick(() => picSearchInput.value?.focus());
+            }
         }
         function selectPIC(teammate) {
             if (teammate) {
@@ -858,6 +932,7 @@ export default {
                 selectedPICName.value = '';
             }
             picDropdownOpen.value = false;
+            picSearchQuery.value = '';
         }
 
         // ── Click-outside to close dropdowns ──
@@ -876,12 +951,18 @@ export default {
         return {
             getBookingNumber,
             getBookingTitle,
+            getBookingPICName,
+            formatBookingOption,
+            formatShortDate,
             resolvedCart,
             resolvedBookingHeaders,
             filteredBookingHeaders,
             bookingSearchQuery,
             bookingSearchInput,
             resolvedTeammates,
+            filteredTeammates,
+            picSearchQuery,
+            picSearchInput,
             hasOverbooking,
             canConfirm,
             isConnectedWithEmptyCart,
@@ -894,9 +975,10 @@ export default {
             picWillUpdate,
             isConnected,
             stagingStatus,
+            deletedBn,
             isSending,
             isDeleting,
-            isSuccessDeleted,
+            isSuccessState,
             isInputsDisabled,
             cartHeader,
             successTeammateName,
@@ -934,6 +1016,8 @@ $blue: #3b82f6;
 $blue-dark: #2563eb;
 $red: #ef4444;
 $red-dark: #dc2626;
+$green: #059669;
+$green-dark: #047857;
 $gray-900: #111827;
 $gray-700: #374151;
 $gray-500: #6b7280;
@@ -949,6 +1033,7 @@ $transition: 0.15s ease;
 
 /* ── Root container ── */
 .inventory-booking-cart {
+    position: relative;
     display: flex;
     flex-direction: row;
     gap: 0;
@@ -960,19 +1045,40 @@ $transition: 0.15s ease;
     font-size: 12px;
     color: $gray-900;
     overflow: hidden;
+
     &.is-sending .left-panel,
     &.is-sending .right-panel,
     &.is-deleting .left-panel,
     &.is-deleting .right-panel,
-    &.is-success-deleted .left-panel,
-    &.is-success-deleted .right-panel {
+    &.is-success .left-panel,
+    &.is-success .right-panel {
         pointer-events: none;
     }
     &.is-sending .btn-confirm,
     &.is-deleting .btn-confirm,
-    &.is-success-deleted .btn-confirm {
+    &.is-success .confirm-area--elevated {
         pointer-events: auto;
     }
+}
+
+/* ── Success overlay ── */
+.success-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(17, 24, 39, 0.45);
+    z-index: 40;
+    pointer-events: auto;
+}
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+    transition: opacity 0.25s ease;
+}
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+    opacity: 0;
 }
 
 /* ═══════════ LEFT PANEL ═══════════ */
@@ -1250,11 +1356,23 @@ $transition: 0.15s ease;
     display: flex;
     align-items: center;
     gap: 5px;
+    flex-wrap: wrap;
 }
 .label-icon {
     width: 14px;
     height: 14px;
     flex-shrink: 0;
+}
+
+/* ── Connection badge ── */
+.connection-badge {
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: $gray-400;
+}
+.connection-badge--on {
+    color: $green;
 }
 
 /* ── Custom select ── */
@@ -1311,7 +1429,7 @@ $transition: 0.15s ease;
     list-style: none;
     margin: 0;
     padding: 4px 0;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
 }
 .select-option {
@@ -1320,6 +1438,7 @@ $transition: 0.15s ease;
     color: $gray-700;
     cursor: pointer;
     transition: background $transition;
+    line-height: 1.4;
     &:hover { background: $gray-50; }
 }
 .select-option--placeholder {
@@ -1501,6 +1620,21 @@ $transition: 0.15s ease;
     }
 }
 
+/* ── Confirm area ── */
+.confirm-area {
+    display: flex;
+    flex-direction: column;
+}
+.confirm-area--elevated {
+    position: relative;
+    z-index: 50;
+    background: $white;
+    border-radius: $radius;
+    padding: 18px;
+    margin: -6px -8px -8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+
 /* ── Confirm button ── */
 .btn-confirm {
     display: flex;
@@ -1542,14 +1676,10 @@ $transition: 0.15s ease;
     }
     &.btn-confirm--success,
     &.btn-confirm--success-deleted {
-        background: #059669;
+        background: $green;
         color: $white;
-        cursor: default;
-        &:hover { background: #059669; }
-    }
-    &.btn-confirm--success-deleted {
         cursor: pointer;
-        &:hover { background: #047857; }
+        &:hover { background: $green-dark; }
     }
 }
 .confirm-icon {
@@ -1567,11 +1697,85 @@ $transition: 0.15s ease;
 .booking-success-line {
     font-size: 12px;
     color: $gray-500;
-    margin: 8px 0 0;
-    line-height: 1.5;
+    margin: 10px 0 0;
+    line-height: 1.6;
+    text-align: center;
+}
+.confirm-area--elevated .booking-success-line {
+    color: $gray-700;
 }
 .booking-success-var {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-weight: 600;
+}
+.success-dismiss-hint {
+    font-size: 11px;
+    color: $gray-400;
+    margin: 6px 0 0;
+    text-align: center;
+    font-style: italic;
+}
+
+/* ═══════════ RESPONSIVE ═══════════ */
+@media (max-width: 900px) {
+    .inventory-booking-cart {
+        flex-direction: column;
+    }
+    .panel-divider {
+        width: 100%;
+        height: 1px;
+    }
+    .left-panel {
+        flex: none;
+    }
+    .right-panel {
+        flex: none;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    .left-panel {
+        padding: 16px;
+    }
+    .right-panel {
+        padding: 16px;
+        gap: 14px;
+    }
+    .cart-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .header-count-row {
+        width: 100%;
+    }
+    .th-image, .td-image {
+        display: none;
+    }
+    .th-status, .td-status {
+        display: none;
+    }
+    .th-avail, .td-avail {
+        width: 80px;
+    }
+    .th-qty, .td-qty {
+        width: 80px;
+    }
+    .qty-input {
+        width: 56px;
+    }
+    .table-row {
+        padding: 10px 0;
+    }
+    .empty-state {
+        padding: 40px 16px;
+    }
+    .existing-booking-row {
+        flex-direction: column;
+        .custom-select { flex: none; }
+    }
+    .btn-connect {
+        width: 100%;
+    }
 }
 </style>
