@@ -1,5 +1,5 @@
 <template>
-    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending }">
+    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-success-deleted': isSuccessDeleted }">
         <!-- ═══════════ LEFT PANEL ═══════════ -->
         <div class="left-panel">
             <div class="cart-header">
@@ -12,7 +12,7 @@
                     <button
                         type="button"
                         class="btn-empty-cart"
-                        :disabled="itemCount === 0 || isSending"
+                        :disabled="itemCount === 0 || isInputsDisabled"
                         @click="emptyCart"
                     >
                         Empty Cart
@@ -94,14 +94,14 @@
                                 :class="{ 'is-over': item.isOverLimit }"
                                 :value="item.quantity"
                                 min="1"
-                                :disabled="isSending"
+                                :disabled="isInputsDisabled"
                                 @change="updateQuantity(idx, $event.target.value)"
                             />
                         </div>
 
                         <!-- Remove -->
                         <div class="td td-action">
-                            <button type="button" class="btn-remove" :disabled="isSending" @click="removeItem(idx)">
+                            <button type="button" class="btn-remove" :disabled="isInputsDisabled" @click="removeItem(idx)">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6" />
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -134,7 +134,7 @@
                             type="button"
                             class="select-trigger"
                             :class="{ 'has-value': !!selectedBookingOption }"
-                            :disabled="isConnected || isSending"
+                            :disabled="isConnected || isInputsDisabled"
                             @click="toggleBookingDropdown"
                         >
                             <span class="select-text">{{ bookingDropdownDisplay }}</span>
@@ -173,7 +173,7 @@
                             'btn-connect--linked': isConnected,
                             'btn-connect--ready': !isConnected && !!selectedBookingOption,
                         }"
-                        :disabled="(!isConnected && !selectedBookingOption) || isSending"
+                        :disabled="(!isConnected && !selectedBookingOption) || isInputsDisabled"
                         @click="isConnected ? disconnectBooking() : connectBooking()"
                     >
                         <!-- Connected: disconnect icon -->
@@ -207,10 +207,10 @@
                         v-model="quickAddInput"
                         class="quick-add-input"
                         placeholder="Scan or type SKU..."
-                        :disabled="isSending"
+                        :disabled="isInputsDisabled"
                         @keyup.enter="quickAdd"
                     />
-                    <button type="button" class="btn-quick-add" :disabled="isSending" @click="quickAdd">
+                    <button type="button" class="btn-quick-add" :disabled="isInputsDisabled" @click="quickAdd">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="5" y1="12" x2="19" y2="12" />
                             <polyline points="12 5 19 12 12 19" />
@@ -234,7 +234,7 @@
                         v-model="bookingTitle"
                         class="icon-input"
                         placeholder="e.g. Q4 Internal Event"
-                        :disabled="isSending"
+                        :disabled="isInputsDisabled"
                     />
                 </div>
             </div>
@@ -247,7 +247,7 @@
                         type="button"
                         class="select-trigger"
                         :class="{ 'has-value': !!selectedPIC }"
-                        :disabled="isSending"
+                        :disabled="isInputsDisabled"
                         @click="togglePICDropdown"
                     >
                         <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -277,11 +277,12 @@
                 class="btn-confirm"
                 :class="{
                     'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
-                    'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart,
+                    'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessDeleted,
                     'btn-confirm--sending': stagingStatus === 'Sending',
                     'btn-confirm--success': stagingStatus === 'Successful',
+                    'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
                 }"
-                :disabled="stagingStatus === 'Sending' || (stagingStatus !== 'Successful' && !canConfirm && !isConnectedWithEmptyCart)"
+                :disabled="stagingStatus === 'Sending' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Deleted' && !canConfirm && !isConnectedWithEmptyCart)"
                 @click="onConfirmClick"
                 type="button"
             >
@@ -297,7 +298,7 @@
                     <polyline points="12 6 12 12 16 14" />
                 </svg>
                 <!-- Success: check -->
-                <svg v-else-if="stagingStatus === 'Successful'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-else-if="stagingStatus === 'Successful' || stagingStatus === 'Successful_Deleted'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6L9 17l-5-5" />
                 </svg>
                 <!-- Normal clock/confirm icon -->
@@ -389,18 +390,22 @@ export default {
             const src = (resolved && typeof resolved === 'object' && !Array.isArray(resolved)) ? resolved : raw;
             const h = src.booking_header;
             const items = src.booking_items;
-            if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [] };
+            if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [], staging_status: src.staging_status ?? null, updated_at: src.updated_at, deleted_bn: src.deleted_bn ?? null };
             return {
                 booking_header: normalizeHeader(h) || { ...EMPTY_HEADER },
                 booking_items: Array.isArray(items) ? items.map(normalizeItem) : [],
                 staging_status: src.staging_status ?? null,
                 updated_at: src.updated_at,
+                deleted_bn: src.deleted_bn ?? null,
             };
         });
         const cartHeader = computed(() => cartDataObj.value?.booking_header || {});
         const cartItems = computed(() => cartDataObj.value?.booking_items || []);
         const stagingStatus = computed(() => cartDataObj.value?.staging_status ?? null);
+        const deletedBn = computed(() => cartDataObj.value?.deleted_bn ?? null);
         const isSending = computed(() => stagingStatus.value === 'Sending');
+        const isSuccessDeleted = computed(() => stagingStatus.value === 'Successful_Deleted');
+        const isInputsDisabled = computed(() => isSending.value || isSuccessDeleted.value);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -492,6 +497,7 @@ export default {
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
+            if (stagingStatus.value === 'Successful_Deleted') return `Successfully Deleted Booking Number ${deletedBn.value || ''}, Click to Reset.`;
             if (isConnectedWithEmptyCart.value) return 'Delete Booking';
             return hasOverbooking.value && canConfirm.value ? 'Proceed (Overbooked)' : 'Confirm Booking';
         });
@@ -572,7 +578,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            if (isSending.value) return;
+            if (isInputsDisabled.value) return;
 
             const qty = Math.max(1, parseInt(val) || 1);
             const item = cartItems.value[index];
@@ -589,7 +595,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            if (isSending.value) return;
+            if (isInputsDisabled.value) return;
 
             const item = cartItems.value[index];
             if (!item) return;
@@ -604,7 +610,7 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-            if (isSending.value) return;
+            if (isInputsDisabled.value) return;
 
             const sku = quickAddInput.value.trim();
             if (!sku) return;
@@ -721,19 +727,37 @@ export default {
                 });
                 return;
             }
+            if (stagingStatus.value === 'Successful_Deleted') {
+                emit('trigger-event', {
+                    name: 'resetCart',
+                    event: {
+                        value: {
+                            booking_items: [],
+                            booking_header: { id: null, pic_id: null, created_at: null, bookingtitle: null, bookingnumber: null },
+                        },
+                    },
+                });
+                return;
+            }
             if (isConnectedWithEmptyCart.value) {
+                const now = new Date().toISOString();
                 const h = cartHeader.value || {};
+                const header = {
+                    id: h.id ?? null,
+                    bookingnumber: getBookingNumber(h) ?? null,
+                    created_at: h.created_at ?? null,
+                    bookingtitle: getBookingTitle(h) ?? null,
+                    pic_id: h.pic_id ?? null,
+                };
                 emit('trigger-event', {
                     name: 'deleteBooking',
                     event: {
                         value: {
-                            booking_header: {
-                                id: h.id ?? null,
-                                bookingnumber: getBookingNumber(h) ?? null,
-                                created_at: h.created_at ?? null,
-                                bookingtitle: getBookingTitle(h) ?? null,
-                                pic_id: h.pic_id ?? null,
-                            },
+                            staging_status: 'Sending',
+                            is_edit: true,
+                            booking_header: header,
+                            booking_items: [],
+                            updated_at: now,
                         },
                     },
                 });
@@ -802,7 +826,7 @@ export default {
 
         // ── Dropdown helpers ──
         function toggleBookingDropdown() {
-            if (isSending.value || isConnected.value) return;
+            if (isInputsDisabled.value || isConnected.value) return;
             bookingDropdownOpen.value = !bookingDropdownOpen.value;
             picDropdownOpen.value = false;
             if (bookingDropdownOpen.value) {
@@ -816,7 +840,7 @@ export default {
             bookingSearchQuery.value = '';
         }
         function togglePICDropdown() {
-            if (isSending.value) return;
+            if (isInputsDisabled.value) return;
             picDropdownOpen.value = !picDropdownOpen.value;
             bookingDropdownOpen.value = false;
         }
@@ -866,6 +890,8 @@ export default {
             isConnected,
             stagingStatus,
             isSending,
+            isSuccessDeleted,
+            isInputsDisabled,
             cartHeader,
             successTeammateName,
             formattedBookingTime,
@@ -929,10 +955,13 @@ $transition: 0.15s ease;
     color: $gray-900;
     overflow: hidden;
     &.is-sending .left-panel,
-    &.is-sending .right-panel {
+    &.is-sending .right-panel,
+    &.is-success-deleted .left-panel,
+    &.is-success-deleted .right-panel {
         pointer-events: none;
     }
-    &.is-sending .btn-confirm {
+    &.is-sending .btn-confirm,
+    &.is-success-deleted .btn-confirm {
         pointer-events: auto;
     }
 }
@@ -1497,11 +1526,16 @@ $transition: 0.15s ease;
         cursor: wait;
         &:hover { background: #111827; }
     }
-    &.btn-confirm--success {
+    &.btn-confirm--success,
+    &.btn-confirm--success-deleted {
         background: #059669;
         color: $white;
         cursor: default;
         &:hover { background: #059669; }
+    }
+    &.btn-confirm--success-deleted {
+        cursor: pointer;
+        &:hover { background: #047857; }
     }
 }
 .confirm-icon {

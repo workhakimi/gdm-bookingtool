@@ -125,7 +125,22 @@ export default {
             label: { en: 'On Delete Booking' },
             event: {
                 value: {
+                    staging_status: 'Sending',
+                    is_edit: true,
                     booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
+                    booking_items: [],
+                    updated_at: null,
+                },
+            },
+            default: false,
+        },
+        {
+            name: 'resetCart',
+            label: { en: 'On Reset Cart' },
+            event: {
+                value: {
+                    booking_items: [],
+                    booking_header: { id: null, pic_id: null, created_at: null, bookingtitle: null, bookingnumber: null },
                 },
             },
             default: false,
