@@ -27,7 +27,7 @@ export default {
             label: { en: 'On Clear Cart' },
             event: {
                 value: {
-                    booking_header: { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null },
+                    booking_header: { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null },
                     booking_items: [],
                 },
             },
@@ -46,7 +46,7 @@ export default {
             label: { en: 'On Remove From Cart' },
             event: {
                 value: {
-                    booking_header: { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null },
+                    booking_header: { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null },
                     booking_items: [],
                 },
             },
@@ -57,7 +57,7 @@ export default {
             label: { en: 'On Quantity Change' },
             event: {
                 value: {
-                    booking_header: { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null },
+                    booking_header: { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null },
                     booking_items: [],
                 },
             },
@@ -69,7 +69,7 @@ export default {
             event: {
                 value: {
                     overbooked: true,
-                    booking_header: { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null },
+                    booking_header: { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null },
                     booking_items: [],
                 },
             },
@@ -82,7 +82,7 @@ export default {
                 value: {
                     booking_header: {
                         id: null,
-                        booking_number: null,
+                        bookingnumber: null,
                         created_at: null,
                         booking_title: null,
                         pic_id: null,
@@ -101,7 +101,7 @@ export default {
                 value: {
                     staging_status: 'Sending',
                     is_edit: false,
-                    booking_header: { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null },
+                    booking_header: { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null },
                     booking_items: [],
                     updated_at: null,
                 },
@@ -132,7 +132,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'object',
-                tooltip: '{ booking_header: { id, booking_number, created_at, booking_title, pic_id, updated_at? }, booking_items: [...], staging_status?: null | "Sending" | "Successful" }',
+                tooltip: '{ booking_header: { id, bookingnumber, created_at, booking_title, pic_id, updated_at? }, booking_items: [...], staging_status?: null | "Sending" | "Successful" }',
             },
             /* wwEditor:end */
         },
@@ -158,7 +158,7 @@ export default {
             /* wwEditor:start */
             bindingValidation: {
                 type: 'array',
-                tooltip: 'Array of { id, booking_number or bookingnumber, booking_title or bookingtitle, pic_id, created_at? }',
+                tooltip: 'Array of { id, bookingnumber, booking_title or bookingtitle, pic_id, created_at? }',
             },
             /* wwEditor:end */
         },

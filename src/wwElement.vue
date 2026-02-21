@@ -317,10 +317,10 @@
 <script>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
-const EMPTY_HEADER = { id: null, booking_number: null, created_at: null, booking_title: null, pic_id: null };
+const EMPTY_HEADER = { id: null, bookingnumber: null, created_at: null, booking_title: null, pic_id: null };
 
 function getBookingNumber(header) {
-    return header?.booking_number ?? header?.bookingnumber ?? null;
+    return header?.bookingnumber ?? null;
 }
 function getBookingTitle(header) {
     return header?.booking_title ?? header?.bookingtitle ?? null;
@@ -365,7 +365,7 @@ export default {
             if (!h || typeof h !== 'object') return { ...EMPTY_HEADER };
             return {
                 id: h.id ?? null,
-                booking_number: getBookingNumber(h),
+                bookingnumber: getBookingNumber(h),
                 created_at: h.created_at ?? null,
                 booking_title: getBookingTitle(h),
                 pic_id: h.pic_id ?? null,
@@ -553,7 +553,7 @@ export default {
             return {
                 booking_header: {
                     id: cartHeader.value?.id || null,
-                    booking_number: getBookingNumber(cartHeader.value) || null,
+                    bookingnumber: getBookingNumber(cartHeader.value) || null,
                     created_at: cartHeader.value?.created_at || null,
                     booking_title: bookingTitle.value || getBookingTitle(cartHeader.value) || null,
                     pic_id: (selectedPIC.value ?? cartHeader.value?.pic_id) || null,
@@ -639,7 +639,7 @@ export default {
                     value: {
                         booking_header: {
                             id: header.id,
-                            booking_number: getBookingNumber(header),
+                            bookingnumber: getBookingNumber(header),
                             created_at: header.created_at,
                             booking_title: getBookingTitle(header),
                             pic_id: header.pic_id,
@@ -686,7 +686,7 @@ export default {
                     value: {
                         booking_header: {
                             id: h.id || null,
-                            booking_number: getBookingNumber(h) || null,
+                            bookingnumber: getBookingNumber(h) || null,
                             created_at: h.created_at || null,
                             booking_title: bookingTitle.value || getBookingTitle(h) || null,
                             pic_id: (selectedPIC.value ?? h.pic_id) || null,
@@ -724,14 +724,14 @@ export default {
             const snapHeader = snapshot.booking_header ?? {};
             const header = {
                 id: snapHeader.id ?? null,
-                booking_number: getBookingNumber(snapHeader) ?? null,
+                bookingnumber: getBookingNumber(snapHeader) ?? null,
                 created_at: editing ? (cartHeader.value?.created_at || null) : now,
                 booking_title: getBookingTitle(snapHeader) ?? bookingTitle.value ?? null,
                 pic_id: snapHeader.pic_id ?? selectedPIC.value ?? null,
             };
             if (!editing) {
                 header.id = null;
-                header.booking_number = generateBookingNumber();
+                header.bookingnumber = generateBookingNumber();
             }
 
             if (hasOverbooking.value) {
