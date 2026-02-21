@@ -1,5 +1,5 @@
 <template>
-    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-success-deleted': isSuccessDeleted }">
+    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-deleting': isDeleting, 'is-success-deleted': isSuccessDeleted }">
         <!-- ═══════════ LEFT PANEL ═══════════ -->
         <div class="left-panel">
             <div class="cart-header">
@@ -278,11 +278,11 @@
                 :class="{
                     'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
                     'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessDeleted,
-                    'btn-confirm--sending': stagingStatus === 'Sending',
+                    'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Deleting',
                     'btn-confirm--success': stagingStatus === 'Successful',
                     'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
                 }"
-                :disabled="stagingStatus === 'Sending' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Deleted' && !canConfirm && !isConnectedWithEmptyCart)"
+                :disabled="stagingStatus === 'Sending' || stagingStatus === 'Deleting' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Deleted' && !canConfirm && !isConnectedWithEmptyCart)"
                 @click="onConfirmClick"
                 type="button"
             >
@@ -292,8 +292,8 @@
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                <!-- Sending: clock -->
-                <svg v-else-if="stagingStatus === 'Sending'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Sending / Deleting: clock -->
+                <svg v-else-if="stagingStatus === 'Sending' || stagingStatus === 'Deleting'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                 </svg>
@@ -404,8 +404,9 @@ export default {
         const stagingStatus = computed(() => cartDataObj.value?.staging_status ?? null);
         const deletedBn = computed(() => cartDataObj.value?.deleted_bn ?? null);
         const isSending = computed(() => stagingStatus.value === 'Sending');
+        const isDeleting = computed(() => stagingStatus.value === 'Deleting');
         const isSuccessDeleted = computed(() => stagingStatus.value === 'Successful_Deleted');
-        const isInputsDisabled = computed(() => isSending.value || isSuccessDeleted.value);
+        const isInputsDisabled = computed(() => isSending.value || isDeleting.value || isSuccessDeleted.value);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -496,6 +497,7 @@ export default {
         const itemCount = computed(() => cartItems.value.length);
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
+            if (stagingStatus.value === 'Deleting') return 'Deleting Booking...';
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
             if (stagingStatus.value === 'Successful_Deleted') return `Successfully Deleted Booking Number ${deletedBn.value || ''}, Click to Reset.`;
             if (isConnectedWithEmptyCart.value) return 'Delete Booking';
@@ -753,7 +755,7 @@ export default {
                     name: 'deleteBooking',
                     event: {
                         value: {
-                            staging_status: 'Sending',
+                            staging_status: 'Deleting',
                             is_edit: true,
                             booking_header: header,
                             booking_items: [],
@@ -890,6 +892,7 @@ export default {
             isConnected,
             stagingStatus,
             isSending,
+            isDeleting,
             isSuccessDeleted,
             isInputsDisabled,
             cartHeader,
@@ -956,11 +959,14 @@ $transition: 0.15s ease;
     overflow: hidden;
     &.is-sending .left-panel,
     &.is-sending .right-panel,
+    &.is-deleting .left-panel,
+    &.is-deleting .right-panel,
     &.is-success-deleted .left-panel,
     &.is-success-deleted .right-panel {
         pointer-events: none;
     }
     &.is-sending .btn-confirm,
+    &.is-deleting .btn-confirm,
     &.is-success-deleted .btn-confirm {
         pointer-events: auto;
     }
