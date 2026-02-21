@@ -509,10 +509,10 @@ export default {
             return {
                 booking_header: {
                     id: cartHeader.value?.id || null,
-                    booking_number: cartHeader.value?.booking_number ?? cartHeader.value?.BookingNumber || null,
+                    booking_number: (cartHeader.value?.booking_number ?? cartHeader.value?.BookingNumber) || null,
                     created_at: cartHeader.value?.created_at || null,
-                    booking_title: bookingTitle.value || cartHeader.value?.booking_title ?? cartHeader.value?.BookingTitle || null,
-                    pic_id: selectedPIC.value ?? cartHeader.value?.pic_id ?? cartHeader.value?.PIC_ID || null,
+                    booking_title: bookingTitle.value || (cartHeader.value?.booking_title ?? cartHeader.value?.BookingTitle) || null,
+                    pic_id: (selectedPIC.value ?? cartHeader.value?.pic_id ?? cartHeader.value?.PIC_ID) || null,
                 },
                 booking_items: items,
             };
@@ -642,10 +642,10 @@ export default {
                     value: {
                         booking_header: {
                             id: h.id || null,
-                            booking_number: h.booking_number ?? h.BookingNumber || null,
+                            booking_number: (h.booking_number ?? h.BookingNumber) || null,
                             created_at: h.created_at || null,
                             booking_title: bookingTitle.value || (h.booking_title ?? h.BookingTitle) || null,
-                            pic_id: selectedPIC.value ?? h.pic_id ?? h.PIC_ID || null,
+                            pic_id: (selectedPIC.value ?? h.pic_id ?? h.PIC_ID) || null,
                         },
                         booking_items: [],
                     },
