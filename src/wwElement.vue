@@ -575,6 +575,7 @@ export default {
                 const originalQty = originals[skuKey] ?? 0;
                 const avlPreview = balance + originalQty - qty;
                 const isUsingBuffer = avlPreview >= 0 && avlPreview < 25;
+                const isOverLimit = avlPreview < 0;
                 return {
                     sku: skuKey,
                     quantity: qty,
@@ -585,7 +586,7 @@ export default {
                     imageLink: ref ? (ref.imagelink ?? ref.image_link) : null,
                     available: balance,
                     avlPreview,
-                    isOverLimit: qty > balance,
+                    isOverLimit,
                     isUsingBuffer,
                     isUnknown: !ref,
                 };
