@@ -109,7 +109,7 @@
                                 :value="item.quantity"
                                 min="1"
                                 :disabled="isInputsDisabled"
-                                @change="updateQuantity(idx, $event.target.value)"
+                                @input="updateQuantity(idx, $event.target.value)"
                             />
                         </div>
 
@@ -572,7 +572,7 @@ export default {
                 const balance = ref ? (Number(ref.balance) || 0) : 0;
                 const qty = i.quantity != null ? i.quantity : 0;
                 const originalQty = originals[skuKey] ?? 0;
-                const avlPreview = balance + originalQty + qty;
+                const avlPreview = balance + originalQty - qty;
                 return {
                     sku: skuKey,
                     quantity: qty,
