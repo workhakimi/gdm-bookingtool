@@ -85,7 +85,7 @@
                         </div>
 
                         <!-- Avl. Preview -->
-                        <div class="td td-avail" :class="{ 'is-over': item.isOverLimit }">
+                        <div class="td td-avail" :class="{ 'is-over': item.isOverLimit, 'is-buffer': item.isUsingBuffer }">
                             <span class="avail-number">{{ item.avlPreview }}</span>
                             <span v-if="item.isOverLimit" class="over-limit-badge">
                                 <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
@@ -93,6 +93,7 @@
                                 </svg>
                                 Over Limit
                             </span>
+                            <span v-else-if="item.isUsingBuffer" class="buffer-badge">Using Buffer</span>
                         </div>
 
                         <!-- Status -->
@@ -573,6 +574,7 @@ export default {
                 const qty = i.quantity != null ? i.quantity : 0;
                 const originalQty = originals[skuKey] ?? 0;
                 const avlPreview = balance + originalQty - qty;
+                const isUsingBuffer = avlPreview >= 0 && avlPreview < 25;
                 return {
                     sku: skuKey,
                     quantity: qty,
@@ -584,6 +586,7 @@ export default {
                     available: balance,
                     avlPreview,
                     isOverLimit: qty > balance,
+                    isUsingBuffer,
                     isUnknown: !ref,
                 };
             });
@@ -1064,6 +1067,7 @@ $blue: #3b82f6;
 $blue-dark: #2563eb;
 $red: #ef4444;
 $red-dark: #dc2626;
+$orange: #ea580c;
 $green: #059669;
 $green-dark: #047857;
 $gray-900: #111827;
@@ -1308,6 +1312,9 @@ $transition: 0.15s ease;
 .td-avail.is-over .avail-number {
     color: $red;
 }
+.td-avail.is-buffer .avail-number {
+    color: $orange;
+}
 .over-limit-badge {
     display: flex;
     align-items: center;
@@ -1317,6 +1324,14 @@ $transition: 0.15s ease;
     color: $red;
     margin-top: 2px;
     svg { flex-shrink: 0; }
+}
+.buffer-badge {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: $orange;
+    margin-top: 2px;
 }
 .status-badge {
     font-size: 12px;
