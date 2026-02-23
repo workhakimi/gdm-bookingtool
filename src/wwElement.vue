@@ -299,13 +299,14 @@
                     class="btn-confirm"
                     :class="{
                         'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
-                        'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessState,
-                        'btn-confirm--delete': isConnectedWithEmptyCart && !isSuccessState,
+                        'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessState && !isFailed,
+                        'btn-confirm--delete': isConnectedWithEmptyCart && !isSuccessState && !isFailed,
                         'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Deleting',
+                        'btn-confirm--failed': stagingStatus === 'Failed',
                         'btn-confirm--success': stagingStatus === 'Successful',
                         'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
                     }"
-                    :disabled="stagingStatus === 'Sending' || stagingStatus === 'Deleting' || (!isSuccessState && !canConfirm && !isConnectedWithEmptyCart)"
+                    :disabled="stagingStatus === 'Sending' || stagingStatus === 'Deleting' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Deleted' && stagingStatus !== 'Failed' && !canConfirm && !isConnectedWithEmptyCart)"
                     @click="onConfirmClick"
                     type="button"
                 >
@@ -323,6 +324,12 @@
                     <!-- Success: check -->
                     <svg v-else-if="isSuccessState" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    <!-- Failed: alert -->
+                    <svg v-else-if="stagingStatus === 'Failed'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                     <!-- Normal clock/confirm icon -->
                     <svg v-else class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -484,8 +491,9 @@ export default {
         const deletedBn = computed(() => cartDataObj.value?.deleted_bn ?? null);
         const isSending = computed(() => stagingStatus.value === 'Sending');
         const isDeleting = computed(() => stagingStatus.value === 'Deleting');
+        const isFailed = computed(() => stagingStatus.value === 'Failed');
         const isSuccessState = computed(() => stagingStatus.value === 'Successful' || stagingStatus.value === 'Successful_Deleted');
-        const isInputsDisabled = computed(() => isSending.value || isDeleting.value || isSuccessState.value);
+        const isInputsDisabled = computed(() => isSending.value || isDeleting.value || isSuccessState.value || isFailed.value);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -499,6 +507,7 @@ export default {
 
         const quickAddInput = ref('');
         const quickAddError = ref('');
+        const lastAttemptedAction = ref(null); // 'booking' | 'deleteBooking' — used for retry when Failed
 
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
@@ -524,6 +533,10 @@ export default {
             selectedBookingOption.value = (currentId && getBookingNumber(header)) ? { ...header } : null;
             lastSyncedHeaderId.value = currentId;
         }, { immediate: true, deep: true });
+
+        watch(stagingStatus, (s) => {
+            if (s === 'Successful' || s === 'Successful_Deleted') lastAttemptedAction.value = null;
+        });
 
         // ── Reference data lookup ──
         const refLookup = computed(() => {
@@ -575,6 +588,7 @@ export default {
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
             if (stagingStatus.value === 'Deleting') return 'Deleting Booking...';
+            if (stagingStatus.value === 'Failed') return 'There was a problem, Click to retry';
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
             if (stagingStatus.value === 'Successful_Deleted') return 'Successfully Deleted';
             if (isConnectedWithEmptyCart.value) return 'Delete Booking';
@@ -791,7 +805,37 @@ export default {
             return `BN-${digits}`;
         }
 
+        function emitDeleteBooking() {
+            const h = cartHeader.value || {};
+            const header = {
+                id: h.id ?? null,
+                bookingnumber: getBookingNumber(h) ?? null,
+                created_at: h.created_at ?? null,
+                bookingtitle: getBookingTitle(h) ?? null,
+                pic_id: h.pic_id ?? null,
+            };
+            lastAttemptedAction.value = 'deleteBooking';
+            emit('trigger-event', {
+                name: 'deleteBooking',
+                event: {
+                    value: {
+                        staging_status: 'Deleting',
+                        booking_items: [],
+                        booking_header: header,
+                    },
+                },
+            });
+        }
+
         function onConfirmClick() {
+            if (stagingStatus.value === 'Failed') {
+                if (lastAttemptedAction.value === 'booking') {
+                    confirmBooking();
+                } else if (lastAttemptedAction.value === 'deleteBooking') {
+                    emitDeleteBooking();
+                }
+                return;
+            }
             if (stagingStatus.value === 'Successful') {
                 const payload = buildCartVariable();
                 emit('trigger-event', {
@@ -818,24 +862,7 @@ export default {
                 return;
             }
             if (isConnectedWithEmptyCart.value) {
-                const h = cartHeader.value || {};
-                const header = {
-                    id: h.id ?? null,
-                    bookingnumber: getBookingNumber(h) ?? null,
-                    created_at: h.created_at ?? null,
-                    bookingtitle: getBookingTitle(h) ?? null,
-                    pic_id: h.pic_id ?? null,
-                };
-                emit('trigger-event', {
-                    name: 'deleteBooking',
-                    event: {
-                        value: {
-                            staging_status: 'Deleting',
-                            booking_items: [],
-                            booking_header: header,
-                        },
-                    },
-                });
+                emitDeleteBooking();
                 return;
             }
             confirmBooking();
@@ -885,6 +912,7 @@ export default {
                 });
             }
 
+            lastAttemptedAction.value = 'booking';
             emit('trigger-event', {
                 name: 'booking',
                 event: {
@@ -1673,6 +1701,11 @@ $transition: 0.15s ease;
         color: $white;
         cursor: wait;
         &:hover { background: #111827; }
+    }
+    &.btn-confirm--failed {
+        background: $red;
+        color: $white;
+        &:hover { background: $red-dark; }
     }
     &.btn-confirm--success,
     &.btn-confirm--success-deleted {
