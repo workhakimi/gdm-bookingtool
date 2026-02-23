@@ -40,7 +40,16 @@
                 <div class="table-head">
                     <span class="th th-image">image</span>
                     <span class="th th-details">product details</span>
-                    <span class="th th-avail">availability</span>
+                    <span class="th th-avail">
+                        Avl. Preview
+                        <span class="th-info" title="This is a preview of what the sku availability would be with your input order quantity.">
+                            <svg class="info-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="16" x2="12" y2="12" />
+                                <line x1="12" y1="8" x2="12.01" y2="8" />
+                            </svg>
+                        </span>
+                    </span>
                     <span class="th th-status">status</span>
                     <span class="th th-qty">order qty</span>
                     <span class="th th-action"></span>
@@ -75,9 +84,9 @@
                             <div class="product-sku">{{ item.sku }}</div>
                         </div>
 
-                        <!-- Availability -->
+                        <!-- Avl. Preview -->
                         <div class="td td-avail" :class="{ 'is-over': item.isOverLimit }">
-                            <span class="avail-number">{{ item.available }}</span>
+                            <span class="avail-number">{{ item.avlPreview }}</span>
                             <span v-if="item.isOverLimit" class="over-limit-badge">
                                 <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
                                     <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm-.5 3.5a.5.5 0 0 1 1 0v4a.5.5 0 0 1-1 0v-4zm.5 7.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z" />
@@ -508,6 +517,7 @@ export default {
         const quickAddInput = ref('');
         const quickAddError = ref('');
         const lastAttemptedAction = ref(null); // 'booking' | 'deleteBooking' — used for retry when Failed
+        const originalBookingQtys = ref({}); // sku -> qty when booking was loaded (for Avl. Preview)
 
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
@@ -520,6 +530,14 @@ export default {
         watch(cartHeader, (header) => {
             const currentId = header?.id || null;
             if (currentId === lastSyncedHeaderId.value) return;
+
+            if (currentId) {
+                originalBookingQtys.value = Object.fromEntries(
+                    cartItems.value.map(i => [i.sku, i.quantity ?? 0])
+                );
+            } else {
+                originalBookingQtys.value = {};
+            }
 
             bookingTitle.value = getBookingTitle(header) || '';
             if (header?.pic_id) {
@@ -545,15 +563,16 @@ export default {
             return map;
         });
 
-        // ── Resolved cart — uses balance for availability ──
+        // ── Resolved cart — balance for over-limit check; Avl. Preview = availability + original booking qty + order qty ──
         const resolvedCart = computed(() => {
-            const bufferOn = !!props.content?.buffer;
+            const originals = originalBookingQtys.value;
             return cartItems.value.map(i => {
                 const skuKey = i.sku;
                 const ref = refLookup.value[skuKey];
                 const balance = ref ? (Number(ref.balance) || 0) : 0;
-                const available = bufferOn ? Math.max(0, balance - 25) : balance;
                 const qty = i.quantity != null ? i.quantity : 0;
+                const originalQty = originals[skuKey] ?? 0;
+                const avlPreview = balance + originalQty + qty;
                 return {
                     sku: skuKey,
                     quantity: qty,
@@ -562,8 +581,9 @@ export default {
                     color: ref ? ref.color : '-',
                     size: ref ? ref.size : '-',
                     imageLink: ref ? (ref.imagelink ?? ref.image_link) : null,
-                    available,
-                    isOverLimit: qty > available,
+                    available: balance,
+                    avlPreview,
+                    isOverLimit: qty > balance,
                     isUnknown: !ref,
                 };
             });
@@ -1214,7 +1234,9 @@ $transition: 0.15s ease;
 }
 .th-image   { width: 64px;  flex-shrink: 0; }
 .th-details { flex: 1; }
-.th-avail   { width: 120px; text-align: center; flex-shrink: 0; }
+.th-avail   { width: 120px; display: flex; align-items: center; justify-content: center; gap: 4px; flex-shrink: 0; }
+.th-info    { display: inline-flex; align-items: center; cursor: help; color: $gray-400; }
+.th-info .info-icon { width: 14px; height: 14px; flex-shrink: 0; }
 .th-status  { width: 90px;  text-align: center; flex-shrink: 0; }
 .th-qty     { width: 110px; text-align: center; flex-shrink: 0; }
 .th-action  { width: 44px;  flex-shrink: 0; }

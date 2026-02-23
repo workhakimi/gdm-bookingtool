@@ -14,11 +14,6 @@ export default {
                     'bookingItems',
                 ],
             },
-            {
-                label: 'Options',
-                isCollapsible: true,
-                properties: ['buffer'],
-            },
         ],
     },
     triggerEvents: [
@@ -210,18 +205,5 @@ export default {
             },
             /* wwEditor:end */
         },
-        buffer: {
-            label: { en: 'Buffer (Balance − 25)' },
-            type: 'OnOff',
-            section: 'settings',
-            bindable: true,
-            defaultValue: false,
-            /* wwEditor:start */
-            bindingValidation: {
-                type: 'boolean',
-                tooltip: 'When on, available = balance − 25. When off, available = balance.',
             },
-            /* wwEditor:end */
-        },
-    },
 };
