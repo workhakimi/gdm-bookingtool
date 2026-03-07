@@ -145,16 +145,18 @@
                                     placeholder="Search SKU, model, or color..."
                                     :value="row._searchQuery"
                                     :disabled="isInputsDisabled"
-                                    @input="row._searchQuery = $event.target.value; row._dropdownOpen = true"
+                                    @input="row._searchQuery = $event.target.value; row._dropdownOpen = true; row._highlightedIndex = -1"
                                     @focus="row._dropdownOpen = true"
                                     @blur="onDraftSkuBlur(row._uid)"
+                                    @keydown="onDraftSkuKeydown($event, row)"
                                 />
                                 <transition name="dropdown-fade">
-                                    <div v-if="row._dropdownOpen && filteredInventory(row._searchQuery).length" class="sku-dropdown">
+                                    <div v-if="row._dropdownOpen && filteredInventory(row._searchQuery).length" class="sku-dropdown" :ref="el => { if (el) draftDropdownRefs[row._uid] = el; else delete draftDropdownRefs[row._uid]; }">
                                         <div
-                                            v-for="inv in filteredInventory(row._searchQuery)"
+                                            v-for="(inv, idx) in filteredInventory(row._searchQuery)"
                                             :key="inv.sku"
                                             class="sku-dropdown-item"
+                                            :class="{ 'is-highlighted': idx === row._highlightedIndex }"
                                             @mousedown.prevent="selectSkuForDraft(row._uid, inv)"
                                         >
                                             <img v-if="inv.imagelink || inv.image_link" :src="inv.imagelink || inv.image_link" :alt="inv.sku" class="dd-item-img" />
@@ -251,19 +253,21 @@
                         placeholder="Search existing booking..."
                         :value="bookingSearchQuery"
                         :disabled="isInputsDisabled"
-                        @input="bookingSearchQuery = $event.target.value; bookingDropdownOpen = true"
+                        @input="bookingSearchQuery = $event.target.value; bookingDropdownOpen = true; bookingHighlightedIndex = -1"
                         @focus="bookingDropdownOpen = true"
                         @blur="onBookingSearchBlur"
+                        @keydown="onBookingSearchKeydown($event)"
                     />
                     <transition name="dropdown-fade">
-                        <div v-if="bookingDropdownOpen" class="booking-dropdown">
-                            <div class="booking-dropdown-item booking-dropdown-item--placeholder" @mousedown.prevent="bookingDropdownOpen = false">
+                        <div v-if="bookingDropdownOpen" class="booking-dropdown" ref="bookingDropdownRef">
+                            <div class="booking-dropdown-item booking-dropdown-item--placeholder" @mousedown.prevent="bookingDropdownOpen = false; bookingHighlightedIndex = -1">
                                 Select Booking ID...
                             </div>
                             <div
-                                v-for="h in filteredBookingHeaders"
+                                v-for="(h, idx) in filteredBookingHeaders"
                                 :key="h.id"
                                 class="booking-dropdown-item"
+                                :class="{ 'is-highlighted': idx === bookingHighlightedIndex }"
                                 @mousedown.prevent="selectBooking(h)"
                             >
                                 {{ formatBookingOption(h) }}
@@ -558,6 +562,11 @@ export default {
         // ── Draft rows for inline SKU search ──
         const draftRows = ref([]);
         const draftInputRefs = {};
+        const draftDropdownRefs = {}; // keyed by _uid → dropdown container el
+
+        // ── Booking dropdown keyboard nav ──
+        const bookingHighlightedIndex = ref(-1);
+        const bookingDropdownRef = ref(null);
 
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
@@ -774,7 +783,7 @@ export default {
             /* wwEditor:end */
             if (isInputsDisabled.value) return;
             const uid = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-            draftRows.value.push({ _uid: uid, _searchQuery: '', _dropdownOpen: false });
+            draftRows.value.push({ _uid: uid, _searchQuery: '', _dropdownOpen: false, _highlightedIndex: -1 });
             nextTick(() => {
                 const input = draftInputRefs[uid];
                 if (input) input.focus();
@@ -801,8 +810,65 @@ export default {
         function onDraftSkuBlur(uid) {
             setTimeout(() => {
                 const row = draftRows.value.find(r => r._uid === uid);
-                if (row) row._dropdownOpen = false;
+                if (row) { row._dropdownOpen = false; row._highlightedIndex = -1; }
             }, 150);
+        }
+
+        function onDraftSkuKeydown(event, row) {
+            const items = filteredInventory(row._searchQuery);
+            if (!row._dropdownOpen || !items.length) {
+                if (event.key === 'Escape') { row._dropdownOpen = false; row._highlightedIndex = -1; }
+                return;
+            }
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                row._highlightedIndex = (row._highlightedIndex + 1) % items.length;
+                scrollDropdownItemIntoView(draftDropdownRefs[row._uid], row._highlightedIndex);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                row._highlightedIndex = (row._highlightedIndex - 1 + items.length) % items.length;
+                scrollDropdownItemIntoView(draftDropdownRefs[row._uid], row._highlightedIndex);
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                if (row._highlightedIndex >= 0 && row._highlightedIndex < items.length) {
+                    selectSkuForDraft(row._uid, items[row._highlightedIndex]);
+                }
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                row._dropdownOpen = false;
+                row._highlightedIndex = -1;
+            }
+        }
+
+        function onBookingSearchKeydown(event) {
+            const items = filteredBookingHeaders.value;
+            if (!bookingDropdownOpen.value) return;
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                bookingHighlightedIndex.value = (bookingHighlightedIndex.value + 1) % items.length;
+                scrollDropdownItemIntoView(bookingDropdownRef.value, bookingHighlightedIndex.value);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                bookingHighlightedIndex.value = (bookingHighlightedIndex.value - 1 + items.length) % items.length;
+                scrollDropdownItemIntoView(bookingDropdownRef.value, bookingHighlightedIndex.value);
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                const idx = bookingHighlightedIndex.value;
+                if (idx >= 0 && idx < items.length) {
+                    selectBooking(items[idx]);
+                    bookingHighlightedIndex.value = -1;
+                }
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                bookingDropdownOpen.value = false;
+                bookingHighlightedIndex.value = -1;
+            }
+        }
+
+        function scrollDropdownItemIntoView(container, idx) {
+            if (!container) return;
+            const items = container.querySelectorAll('.sku-dropdown-item, .booking-dropdown-item:not(.booking-dropdown-item--placeholder):not(.booking-dropdown-item--empty)');
+            if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
         }
 
         function disconnectBooking() {
@@ -978,7 +1044,7 @@ export default {
 
         // ── Dropdown helpers ──
         function onBookingSearchBlur() {
-            setTimeout(() => { bookingDropdownOpen.value = false; }, 150);
+            setTimeout(() => { bookingDropdownOpen.value = false; bookingHighlightedIndex.value = -1; }, 150);
         }
         function selectBooking(header) {
             bookingDropdownOpen.value = false;
@@ -1088,12 +1154,17 @@ export default {
             picSelectEl,
             draftRows,
             draftInputRefs,
+            draftDropdownRefs,
+            bookingHighlightedIndex,
+            bookingDropdownRef,
             filteredInventory,
             addDraftRow,
             removeDraftRow,
             selectSkuForDraft,
             onDraftSkuBlur,
+            onDraftSkuKeydown,
             onBookingSearchBlur,
+            onBookingSearchKeydown,
             updateQuantity,
             removeItem,
             disconnectBooking,
@@ -1672,6 +1743,7 @@ $transition: 0.15s ease;
     cursor: pointer;
     transition: background $transition;
     &:hover { background: $gray-50; }
+    &.is-highlighted { background: rgba($blue, 0.08); }
 }
 .dd-item-img {
     width: 36px;
@@ -1756,6 +1828,7 @@ $transition: 0.15s ease;
     transition: background $transition;
     line-height: 1.4;
     &:hover { background: $gray-50; }
+    &.is-highlighted { background: rgba($blue, 0.08); }
     &--placeholder {
         color: $gray-400;
         font-weight: 500;
