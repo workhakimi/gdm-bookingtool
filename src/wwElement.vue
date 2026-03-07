@@ -26,13 +26,13 @@
             </div>
 
             <!-- Empty state -->
-            <div v-if="resolvedCart.length === 0" class="empty-state">
+            <div v-if="resolvedCart.length === 0 && draftRows.length === 0" class="empty-state">
                 <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="9" cy="21" r="1" />
                     <circle cx="20" cy="21" r="1" />
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
                 </svg>
-                <p class="empty-text">Add items manually or from the list below</p>
+                <p class="empty-text">Click "Add Item" to add SKUs to the cart</p>
             </div>
 
             <!-- Cart table -->
@@ -124,8 +124,85 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- Draft rows (inline SKU search) -->
+                    <div v-for="row in draftRows" :key="row._uid" class="table-row table-row--draft">
+                        <div class="td td-image">
+                            <div class="product-img-placeholder">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <polyline points="21 15 16 10 5 21" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="td td-details td-draft-search">
+                            <div class="sku-search-wrap">
+                                <input
+                                    :ref="el => { if (el) draftInputRefs[row._uid] = el; }"
+                                    type="text"
+                                    class="sku-search-input"
+                                    placeholder="Search SKU, model, or color..."
+                                    :value="row._searchQuery"
+                                    :disabled="isInputsDisabled"
+                                    @input="row._searchQuery = $event.target.value; row._dropdownOpen = true"
+                                    @focus="row._dropdownOpen = true"
+                                    @blur="onDraftSkuBlur(row._uid)"
+                                />
+                                <transition name="dropdown-fade">
+                                    <div v-if="row._dropdownOpen && filteredInventory(row._searchQuery).length" class="sku-dropdown">
+                                        <div
+                                            v-for="inv in filteredInventory(row._searchQuery)"
+                                            :key="inv.sku"
+                                            class="sku-dropdown-item"
+                                            @mousedown.prevent="selectSkuForDraft(row._uid, inv)"
+                                        >
+                                            <img v-if="inv.imagelink || inv.image_link" :src="inv.imagelink || inv.image_link" :alt="inv.sku" class="dd-item-img" />
+                                            <div v-else class="dd-item-img dd-item-img--placeholder">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                                    <polyline points="21 15 16 10 5 21" />
+                                                </svg>
+                                            </div>
+                                            <div class="dd-item-info">
+                                                <span class="dd-item-model">{{ inv.model }}</span>
+                                                <span class="dd-item-variant">{{ inv.color }} · {{ inv.size }}</span>
+                                            </div>
+                                            <span class="dd-item-sku">{{ inv.sku }}</span>
+                                        </div>
+                                    </div>
+                                </transition>
+                            </div>
+                        </div>
+                        <div class="td td-avail"></div>
+                        <div class="td td-status"></div>
+                        <div class="td td-qty"></div>
+                        <div class="td td-action">
+                            <button type="button" class="btn-remove" @click="removeDraftRow(row._uid)">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Add Item button -->
+            <button
+                type="button"
+                class="btn-add-item"
+                :disabled="isInputsDisabled"
+                @click="addDraftRow"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Item
+            </button>
         </div>
 
         <!-- ═══════════ DIVIDER ═══════════ -->
@@ -146,96 +223,57 @@
                         ({{ isConnected ? 'Connected' : 'Not Connected' }})
                     </span>
                 </label>
-                <div class="existing-booking-row">
-                    <div class="custom-select" ref="bookingSelectEl">
-                        <button
-                            type="button"
-                            class="select-trigger"
-                            :class="{ 'has-value': !!selectedBookingOption }"
-                            :disabled="isConnected || isInputsDisabled"
-                            @click="toggleBookingDropdown"
-                        >
-                            <span class="select-text">{{ bookingDropdownDisplay }}</span>
-                            <span class="select-dots">···</span>
-                        </button>
-                        <ul v-if="bookingDropdownOpen" class="select-options select-options--with-search">
-                            <li class="select-option select-search-wrap" @mousedown.prevent>
-                                <input
-                                    ref="bookingSearchInput"
-                                    v-model="bookingSearchQuery"
-                                    type="text"
-                                    class="select-search-input"
-                                    placeholder="Search by title, number, or PIC..."
-                                    @keydown.stop
-                                />
-                            </li>
-                            <li class="select-option select-option--placeholder" @mousedown.prevent="selectBooking(null)">
-                                Select Booking ID...
-                            </li>
-                            <li
-                                v-for="h in filteredBookingHeaders"
-                                :key="h.id"
-                                class="select-option"
-                                @mousedown.prevent="selectBooking(h)"
-                            >
-                                {{ formatBookingOption(h) }}
-                            </li>
-                            <li v-if="filteredBookingHeaders.length === 0 && bookingSearchQuery.trim()" class="select-option select-option--empty">
-                                No matches
-                            </li>
-                        </ul>
+                <!-- Connected: booking chip + disconnect button -->
+                <div v-if="isConnected" class="connected-booking-row">
+                    <div class="connected-chip">
+                        <span class="connected-bn">{{ connectedBookingNumber }}</span>
+                        <span v-if="getBookingTitle(cartHeader)" class="connected-title">{{ getBookingTitle(cartHeader) }}</span>
                     </div>
                     <button
-                        class="btn-connect"
-                        :class="{
-                            'btn-connect--linked': isConnected,
-                            'btn-connect--ready': !isConnected && !!selectedBookingOption,
-                        }"
-                        :disabled="(!isConnected && !selectedBookingOption) || isInputsDisabled"
-                        @click="isConnected ? disconnectBooking() : connectBooking()"
+                        type="button"
+                        class="btn-disconnect"
+                        :disabled="isInputsDisabled"
+                        @click="disconnectBooking"
                     >
-                        <!-- Connected: disconnect icon -->
-                        <svg v-if="isConnected" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                             <path d="M5.16 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.72-1.71" />
                             <line x1="2" y1="2" x2="22" y2="22" />
                         </svg>
-                        <!-- Not connected: chain link icon -->
-                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                        </svg>
                     </button>
                 </div>
-            </div>
 
-            <!-- Quick Add SKU -->
-            <div class="rp-section">
-                <label class="rp-label rp-label--caps">
-                    <span class="label-icon-deco">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                    </span>
-                    quick add sku
-                </label>
-                <div class="quick-add-row">
+                <!-- Not connected: search input with dropdown (auto-connects on selection) -->
+                <div v-else class="booking-search-wrap" ref="bookingSelectEl">
                     <input
-                        v-model="quickAddInput"
-                        class="quick-add-input"
-                        placeholder="Scan or type SKU..."
+                        type="text"
+                        class="booking-search-input"
+                        placeholder="Search existing booking..."
+                        :value="bookingSearchQuery"
                         :disabled="isInputsDisabled"
-                        @keyup.enter="quickAdd"
+                        @input="bookingSearchQuery = $event.target.value; bookingDropdownOpen = true"
+                        @focus="bookingDropdownOpen = true"
+                        @blur="onBookingSearchBlur"
                     />
-                    <button type="button" class="btn-quick-add" :disabled="isInputsDisabled" @click="quickAdd">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                            <polyline points="12 5 19 12 12 19" />
-                        </svg>
-                    </button>
+                    <transition name="dropdown-fade">
+                        <div v-if="bookingDropdownOpen" class="booking-dropdown">
+                            <div class="booking-dropdown-item booking-dropdown-item--placeholder" @mousedown.prevent="bookingDropdownOpen = false">
+                                Select Booking ID...
+                            </div>
+                            <div
+                                v-for="h in filteredBookingHeaders"
+                                :key="h.id"
+                                class="booking-dropdown-item"
+                                @mousedown.prevent="selectBooking(h)"
+                            >
+                                {{ formatBookingOption(h) }}
+                            </div>
+                            <div v-if="filteredBookingHeaders.length === 0 && bookingSearchQuery.trim()" class="booking-dropdown-item booking-dropdown-item--empty">
+                                No matches
+                            </div>
+                        </div>
+                    </transition>
                 </div>
-                <p v-if="quickAddError" class="quick-add-error">{{ quickAddError }}</p>
             </div>
 
             <!-- Booking Title -->
@@ -430,7 +468,6 @@ export default {
 
         // ── Booking search ──
         const bookingSearchQuery = ref('');
-        const bookingSearchInput = ref(null);
         const filteredBookingHeaders = computed(() => {
             const list = resolvedBookingHeaders.value;
             const q = bookingSearchQuery.value.trim().toLowerCase();
@@ -515,10 +552,12 @@ export default {
         const bookingDropdownOpen = ref(false);
         const picDropdownOpen = ref(false);
 
-        const quickAddInput = ref('');
-        const quickAddError = ref('');
         const lastAttemptedAction = ref(null); // 'booking' | 'deleteBooking' — used for retry when Failed
         const originalBookingQtys = ref({}); // sku -> qty when booking was loaded (for Avl. Preview)
+
+        // ── Draft rows for inline SKU search ──
+        const draftRows = ref([]);
+        const draftInputRefs = {};
 
         const bookingSelectEl = ref(null);
         const picSelectEl = ref(null);
@@ -638,10 +677,6 @@ export default {
             const time = d.toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' }).replace(/\s*([ap]m)/i, (_, m) => m.toLowerCase());
             return `${day} ${month} ${year}, ${time}`;
         });
-        const bookingDropdownDisplay = computed(() => {
-            if (!selectedBookingOption.value) return 'Select Booking ID...';
-            return formatBookingOption(selectedBookingOption.value);
-        });
         const picDropdownDisplay = computed(() =>
             selectedPICName.value || 'Select Teammate...'
         );
@@ -722,62 +757,52 @@ export default {
             });
         }
 
-        function quickAdd() {
+        // ── Inventory search for draft rows ──
+        function filteredInventory(query) {
+            const all = referenceData.value;
+            if (!query || !query.trim()) return all.slice(0, 30);
+            const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+            return all.filter(item => {
+                const hay = `${item.sku || ''} ${item.model || ''} ${item.color || ''} ${item.size || ''}`.toLowerCase();
+                return tokens.every(tok => hay.includes(tok));
+            }).slice(0, 30);
+        }
+
+        function addDraftRow() {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
             if (isInputsDisabled.value) return;
-
-            const sku = quickAddInput.value.trim();
-            if (!sku) return;
-
-            if (refLookup.value[sku]) {
-                emit('trigger-event', {
-                    name: 'manualAdd',
-                    event: { value: { sku, quantity: 0, status: null } },
-                });
-                quickAddInput.value = '';
-                quickAddError.value = '';
-            } else {
-                quickAddError.value = 'No Match Found';
-            }
+            const uid = 'draft-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+            draftRows.value.push({ _uid: uid, _searchQuery: '', _dropdownOpen: false });
+            nextTick(() => {
+                const input = draftInputRefs[uid];
+                if (input) input.focus();
+            });
         }
 
-        function clearQuickAdd() {
-            quickAddInput.value = '';
-            quickAddError.value = '';
+        function removeDraftRow(uid) {
+            draftRows.value = draftRows.value.filter(r => r._uid !== uid);
+            delete draftInputRefs[uid];
         }
 
-        function connectBooking() {
+        function selectSkuForDraft(uid, item) {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
-
-            if (!selectedBookingOption.value) return;
-
-            const header = selectedBookingOption.value;
-            const headerId = header.id;
-            const items = bookingItemsData.value.filter(i => (i.header_id ?? i.headerid) === headerId);
-
+            if (isInputsDisabled.value) return;
             emit('trigger-event', {
-                name: 'loadBooking',
-                event: {
-                    value: {
-                        booking_header: {
-                            id: header.id,
-                            bookingnumber: getBookingNumber(header),
-                            created_at: header.created_at,
-                            bookingtitle: getBookingTitle(header),
-                            pic_id: header.pic_id,
-                        },
-                        booking_items: items.map(i => ({
-                            sku: i.sku,
-                            quantity: i.quantity ?? 0,
-                            status: i.status ?? null,
-                        })),
-                    },
-                },
+                name: 'manualAdd',
+                event: { value: { sku: item.sku, quantity: 0, status: null } },
             });
+            removeDraftRow(uid);
+        }
+
+        function onDraftSkuBlur(uid) {
+            setTimeout(() => {
+                const row = draftRows.value.find(r => r._uid === uid);
+                if (row) row._dropdownOpen = false;
+            }, 150);
         }
 
         function disconnectBooking() {
@@ -952,19 +977,39 @@ export default {
         }
 
         // ── Dropdown helpers ──
-        function toggleBookingDropdown() {
-            if (isInputsDisabled.value || isConnected.value) return;
-            bookingDropdownOpen.value = !bookingDropdownOpen.value;
-            picDropdownOpen.value = false;
-            if (bookingDropdownOpen.value) {
-                bookingSearchQuery.value = '';
-                nextTick(() => bookingSearchInput.value?.focus());
-            }
+        function onBookingSearchBlur() {
+            setTimeout(() => { bookingDropdownOpen.value = false; }, 150);
         }
         function selectBooking(header) {
-            selectedBookingOption.value = header;
             bookingDropdownOpen.value = false;
             bookingSearchQuery.value = '';
+            if (!header) return;
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+            if (isInputsDisabled.value) return;
+            selectedBookingOption.value = header;
+            const headerId = header.id;
+            const items = bookingItemsData.value.filter(i => (i.header_id ?? i.headerid) === headerId);
+            emit('trigger-event', {
+                name: 'loadBooking',
+                event: {
+                    value: {
+                        booking_header: {
+                            id: header.id,
+                            bookingnumber: getBookingNumber(header),
+                            created_at: header.created_at,
+                            bookingtitle: getBookingTitle(header),
+                            pic_id: header.pic_id,
+                        },
+                        booking_items: items.map(i => ({
+                            sku: i.sku,
+                            quantity: i.quantity ?? 0,
+                            status: i.status ?? null,
+                        })),
+                    },
+                },
+            });
         }
         function togglePICDropdown() {
             if (isInputsDisabled.value) return;
@@ -1010,7 +1055,7 @@ export default {
             resolvedBookingHeaders,
             filteredBookingHeaders,
             bookingSearchQuery,
-            bookingSearchInput,
+            connectedBookingNumber,
             resolvedTeammates,
             filteredTeammates,
             picSearchQuery,
@@ -1021,7 +1066,6 @@ export default {
             subtitle,
             itemCount,
             confirmLabel,
-            bookingDropdownDisplay,
             picDropdownDisplay,
             bookingTitleWillUpdate,
             picWillUpdate,
@@ -1040,20 +1084,22 @@ export default {
             selectedBookingOption,
             bookingDropdownOpen,
             picDropdownOpen,
-            quickAddInput,
-            quickAddError,
             bookingSelectEl,
             picSelectEl,
+            draftRows,
+            draftInputRefs,
+            filteredInventory,
+            addDraftRow,
+            removeDraftRow,
+            selectSkuForDraft,
+            onDraftSkuBlur,
+            onBookingSearchBlur,
             updateQuantity,
             removeItem,
-            quickAdd,
-            clearQuickAdd,
-            connectBooking,
             disconnectBooking,
             emptyCart,
             onConfirmClick,
             confirmBooking,
-            toggleBookingDropdown,
             selectBooking,
             togglePICDropdown,
             selectPIC,
@@ -1547,67 +1593,54 @@ $transition: 0.15s ease;
     flex-shrink: 0;
 }
 
-/* ── Existing booking row ── */
-.existing-booking-row {
-    display: flex;
-    gap: 8px;
-    .custom-select { flex: 1; min-width: 0; }
-}
-.btn-connect {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    display: flex;
+/* ── Add Item button ── */
+.btn-add-item {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    border: 1.5px solid $gray-200;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: $blue;
+    background: rgba($blue, 0.06);
+    border: 1.5px dashed $blue;
     border-radius: $radius-sm;
-    background: $white;
-    color: $gray-400;
     cursor: pointer;
-    transition: all $transition;
-    svg { width: 18px; height: 18px; }
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    transition: background $transition, border-color $transition;
+    align-self: flex-start;
+    svg { width: 14px; height: 14px; }
+    &:hover:not(:disabled) {
+        background: rgba($blue, 0.12);
+        border-color: $blue-dark;
+        color: $blue-dark;
+    }
     &:disabled {
         opacity: 0.4;
         cursor: not-allowed;
     }
-    &.btn-connect--ready {
-        border-color: $blue;
-        color: $blue;
-        background: rgba($blue, 0.06);
-        &:hover { background: $blue; color: $white; }
-    }
-    &.btn-connect--linked {
-        border-color: $red;
-        color: $red;
-        background: rgba($red, 0.06);
-        &:hover { background: $red; color: $white; }
-    }
 }
 
-/* ── Quick Add ── */
-.label-icon-deco {
-    width: 14px;
-    height: 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: $gray-400;
-    padding: 0;
-    flex-shrink: 0;
-    pointer-events: none;
-    svg { width: 14px; height: 14px; }
+/* ── Draft row ── */
+.table-row--draft {
+    background: $gray-50;
+    border-radius: $radius-sm;
+    margin: 2px 0;
+    border-bottom: none !important;
 }
-.quick-add-row {
-    display: flex;
-    gap: 8px;
+.td-draft-search {
+    padding-right: 8px;
 }
-.quick-add-input {
-    flex: 1;
-    min-width: 0;
-    height: 40px;
-    padding: 0 12px;
-    border: 1.5px solid $gray-200;
+.sku-search-wrap {
+    position: relative;
+    width: 100%;
+}
+.sku-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 1.5px solid $gray-300;
     border-radius: $radius-sm;
     font-size: 12px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1618,27 +1651,184 @@ $transition: 0.15s ease;
     &::placeholder { color: $gray-400; }
     &:focus { border-color: $blue; }
 }
-.btn-quick-add {
-    width: 40px;
+.sku-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: $white;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    z-index: 60;
+    max-height: 240px;
+    overflow-y: auto;
+}
+.sku-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background $transition;
+    &:hover { background: $gray-50; }
+}
+.dd-item-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    object-fit: cover;
+    flex-shrink: 0;
+    &--placeholder {
+        background: $gray-100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: $gray-400;
+        svg { width: 18px; height: 18px; }
+    }
+}
+.dd-item-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+.dd-item-model {
+    font-size: 12px;
+    font-weight: 600;
+    color: $gray-900;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dd-item-variant {
+    font-size: 11px;
+    color: $gray-500;
+    margin-top: 1px;
+}
+.dd-item-sku {
+    font-size: 11px;
+    color: $gray-400;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ── Booking search (inline, auto-connect) ── */
+.booking-search-wrap {
+    position: relative;
+}
+.booking-search-input {
+    width: 100%;
     height: 40px;
+    padding: 0 12px;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    font-size: 12px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: $gray-900;
+    background: $white;
+    outline: none;
+    transition: border-color $transition;
+    box-sizing: border-box;
+    &::placeholder { color: $gray-400; }
+    &:focus { border-color: $blue; }
+    &:disabled { background: $gray-50; cursor: default; }
+}
+.booking-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: $white;
+    border: 1.5px solid $gray-200;
+    border-radius: $radius-sm;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    z-index: 50;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.booking-dropdown-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: $gray-700;
+    cursor: pointer;
+    transition: background $transition;
+    line-height: 1.4;
+    &:hover { background: $gray-50; }
+    &--placeholder {
+        color: $gray-400;
+        font-weight: 500;
+        cursor: default;
+        &:hover { background: transparent; }
+    }
+    &--empty {
+        color: $gray-400;
+        cursor: default;
+        font-style: italic;
+        &:hover { background: transparent; }
+    }
+}
+
+/* ── Connected booking chip ── */
+.connected-booking-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.connected-chip {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    background: rgba($green, 0.06);
+    border: 1.5px solid rgba($green, 0.3);
+    border-radius: $radius-sm;
+}
+.connected-bn {
+    font-size: 12px;
+    font-weight: 700;
+    color: $green;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.connected-title {
+    font-size: 11px;
+    color: $gray-500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.btn-disconnect {
+    width: 36px;
+    height: 36px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
+    border: 1.5px solid rgba($red, 0.3);
     border-radius: $radius-sm;
-    background: $blue;
-    color: $white;
-    cursor: pointer;
-    transition: background $transition;
-    svg { width: 18px; height: 18px; }
-    &:hover { background: $blue-dark; }
-}
-.quick-add-error {
-    font-size: 12px;
+    background: rgba($red, 0.06);
     color: $red;
-    font-weight: 500;
-    margin: 2px 0 0;
+    cursor: pointer;
+    transition: all $transition;
+    svg { width: 16px; height: 16px; }
+    &:hover { background: $red; color: $white; border-color: $red; }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+/* ── Dropdown fade transition ── */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
 }
 
 /* ── Input with icon ── */
@@ -1841,12 +2031,12 @@ $transition: 0.15s ease;
     .empty-state {
         padding: 40px 16px;
     }
-    .existing-booking-row {
+    .connected-booking-row {
         flex-direction: column;
-        .custom-select { flex: none; }
     }
-    .btn-connect {
+    .btn-disconnect {
         width: 100%;
+        height: 36px;
     }
 }
 </style>
