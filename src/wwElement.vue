@@ -1666,25 +1666,27 @@ $transition: 0.15s ease;
 
 /* ── Add Item button ── */
 .btn-add-item {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    margin-top: 12px;
-    padding: 7px 14px;
+    width: 100%;
+    height: 52px;
+    margin-top: 4px;
+    padding: 0 16px;
     font-size: 12px;
     font-weight: 600;
     color: $blue;
-    background: rgba($blue, 0.06);
-    border: 1.5px dashed $blue;
+    background: rgba($blue, 0.03);
+    border: 1.5px dashed rgba($blue, 0.35);
     border-radius: $radius-sm;
     cursor: pointer;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    transition: background $transition, border-color $transition;
-    align-self: flex-start;
-    svg { width: 14px; height: 14px; }
+    transition: background $transition, border-color $transition, color $transition;
+    svg { width: 14px; height: 14px; flex-shrink: 0; }
     &:hover:not(:disabled) {
-        background: rgba($blue, 0.12);
-        border-color: $blue-dark;
+        background: rgba($blue, 0.08);
+        border-color: $blue;
         color: $blue-dark;
     }
     &:disabled {
