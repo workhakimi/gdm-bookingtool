@@ -25,18 +25,8 @@
                 </div>
             </div>
 
-            <!-- Empty state -->
-            <div v-if="resolvedCart.length === 0 && draftRows.length === 0" class="empty-state">
-                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="9" cy="21" r="1" />
-                    <circle cx="20" cy="21" r="1" />
-                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                </svg>
-                <p class="empty-text">Click "Add Item" to add SKUs to the cart</p>
-            </div>
-
             <!-- Cart table -->
-            <div v-else class="cart-table">
+            <div class="cart-table">
                 <div class="table-head">
                     <span class="th th-image">image</span>
                     <span class="th th-details">product details</span>
@@ -205,6 +195,7 @@
                 </svg>
                 Add Item
             </button>
+            <p class="add-item-hint">Click Add Item below or in previewer to add to cart.</p>
         </div>
 
         <!-- ═══════════ DIVIDER ═══════════ -->
@@ -1313,25 +1304,13 @@ $transition: 0.15s ease;
     }
 }
 
-/* ── Empty state ── */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    padding: 60px 20px;
+/* ── Add Item hint ── */
+.add-item-hint {
+    font-size: 11px;
     color: $gray-400;
-}
-.empty-icon {
-    width: 48px;
-    height: 48px;
-    margin-bottom: 14px;
-    opacity: 0.5;
-}
-.empty-text {
-    font-size: 12px;
-    margin: 0;
+    margin: 6px 0 0;
+    text-align: center;
+    font-style: italic;
 }
 
 /* ── Cart table ── */
