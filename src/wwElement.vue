@@ -59,13 +59,7 @@
                                 :alt="item.model"
                                 class="product-img"
                             />
-                            <div v-else class="product-img-placeholder">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                    <line x1="12" y1="22.08" x2="12" y2="12" />
-                                </svg>
-                            </div>
+                            <img v-else src="https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU" alt="No image" class="product-img" />
                         </div>
 
                         <!-- Product details -->
@@ -119,13 +113,7 @@
                     <!-- Draft rows (inline SKU search) -->
                     <div v-for="row in draftRows" :key="row._uid" class="table-row table-row--draft">
                         <div class="td td-image">
-                            <div class="product-img-placeholder">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                    <circle cx="8.5" cy="8.5" r="1.5" />
-                                    <polyline points="21 15 16 10 5 21" />
-                                </svg>
-                            </div>
+                            <img src="https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU" alt="No image" class="product-img" />
                         </div>
                         <div class="td td-details td-draft-search">
                             <div class="sku-search-wrap">
@@ -151,14 +139,7 @@
                                             @mousedown.prevent="selectSkuForDraft(row._uid, inv)"
                                         >
 
-                                            <img v-if="inv.imagelink || inv.image_link" :src="inv.imagelink || inv.image_link" :alt="inv.sku" class="dd-item-img" />
-                                            <div v-else class="dd-item-img dd-item-img--placeholder">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                                    <circle cx="8.5" cy="8.5" r="1.5" />
-                                                    <polyline points="21 15 16 10 5 21" />
-                                                </svg>
-                                            </div>
+                                            <img :src="inv.imagelink || inv.image_link || 'https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU'" :alt="inv.sku" class="dd-item-img" />
                                             <div class="dd-item-info">
                                                 <span class="dd-item-model">{{ inv.model }}</span>
                                                 <span class="dd-item-variant">{{ inv.color }} · {{ inv.size }}</span>
@@ -649,7 +630,7 @@ export default {
                     model: ref ? ref.model : 'Unknown Item',
                     color: ref ? ref.color : '-',
                     size: ref ? ref.size : '-',
-                    imageLink: ref ? (ref.imagelink ?? ref.image_link) : null,
+                    imageLink: (ref ? (ref.imagelink ?? ref.image_link) : null) || 'https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU',
                     available: balance,
                     avlPreview,
                     isOverLimit,
@@ -789,7 +770,14 @@ export default {
 
         // ── Inventory search for draft rows ──
         function filteredInventory(query) {
-            const all = referenceData.value;
+            let all = referenceData.value;
+            // Filter out DISC / Pending tagged items when enabled
+            if (props.content?.filterDiscPending) {
+                all = all.filter(item => {
+                    const tags = String(item.tags || '').toLowerCase();
+                    return !tags.includes('disc') && !tags.includes('pending');
+                });
+            }
             if (!query || !query.trim()) return all.slice(0, 30);
             const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
             return all.filter(item => {

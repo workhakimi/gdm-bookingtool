@@ -12,6 +12,7 @@ export default {
                     'teammatesList',
                     'bookingHeaders',
                     'bookingItems',
+                    'filterDiscPending',
                 ],
             },
         ],
@@ -205,5 +206,17 @@ export default {
             },
             /* wwEditor:end */
         },
+        filterDiscPending: {
+            label: { en: 'Filter out DISC / Pending tags' },
+            type: 'OnOff',
+            section: 'settings',
+            defaultValue: false,
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'boolean',
+                tooltip: 'When enabled, hides items whose tags include "DISC" or "Pending" from the manual entry dropdown',
             },
+            /* wwEditor:end */
+        },
+    },
 };
