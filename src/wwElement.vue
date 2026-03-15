@@ -59,7 +59,7 @@
                                 :alt="item.model"
                                 class="product-img"
                             />
-                            <img v-else src="https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU" alt="No image" class="product-img" />
+                            <img v-else src="https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/No%20Image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL05vIEltYWdlLnBuZyIsImlhdCI6MTc3MzYxNTc3OCwiZXhwIjoxODA1MTUxNzc4fQ.3KbcUK3TVIVZ3BG1cMY5X2pglRn3LBeEUQSax7gcK98" alt="No image" class="product-img" />
                         </div>
 
                         <!-- Product details -->
@@ -113,7 +113,7 @@
                     <!-- Draft rows (inline SKU search) -->
                     <div v-for="row in draftRows" :key="row._uid" class="table-row table-row--draft">
                         <div class="td td-image">
-                            <img src="https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU" alt="No image" class="product-img" />
+                            <img src="https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/No%20Image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL05vIEltYWdlLnBuZyIsImlhdCI6MTc3MzYxNTc3OCwiZXhwIjoxODA1MTUxNzc4fQ.3KbcUK3TVIVZ3BG1cMY5X2pglRn3LBeEUQSax7gcK98" alt="No image" class="product-img" />
                         </div>
                         <div class="td td-details td-draft-search">
                             <div class="sku-search-wrap">
@@ -139,7 +139,7 @@
                                             @mousedown.prevent="selectSkuForDraft(row._uid, inv)"
                                         >
 
-                                            <img :src="inv.imagelink || inv.image_link || 'https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU'" :alt="inv.sku" class="dd-item-img" />
+                                            <img :src="inv.imagelink || inv.image_link || 'https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/No%20Image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL05vIEltYWdlLnBuZyIsImlhdCI6MTc3MzYxNTc3OCwiZXhwIjoxODA1MTUxNzc4fQ.3KbcUK3TVIVZ3BG1cMY5X2pglRn3LBeEUQSax7gcK98'" :alt="inv.sku" class="dd-item-img" />
                                             <div class="dd-item-info">
                                                 <span class="dd-item-model">{{ inv.model }}</span>
                                                 <span class="dd-item-variant">{{ inv.color }} · {{ inv.size }}</span>
@@ -631,7 +631,7 @@ export default {
                     model: ref ? ref.model : 'Unknown Item',
                     color: ref ? ref.color : '-',
                     size: ref ? ref.size : '-',
-                    imageLink: (ref ? (ref.imagelink ?? ref.image_link) : null) || 'https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/no-image-icon-lg.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL25vLWltYWdlLWljb24tbGcucG5nIiwiaWF0IjoxNzcyODc2NjY2LCJleHAiOjE4MDQ0MTI2NjZ9.FjfUoSKkU_8xjBZguTe8yY-2ovfvTzaGrrGXNwnzktU',
+                    imageLink: (ref ? (ref.imagelink ?? ref.image_link) : null) || 'https://mtbdsb.greydeal.cloud/storage/v1/object/sign/GeneralUse/No%20Image.png?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1cmwiOiJHZW5lcmFsVXNlL05vIEltYWdlLnBuZyIsImlhdCI6MTc3MzYxNTc3OCwiZXhwIjoxODA1MTUxNzc4fQ.3KbcUK3TVIVZ3BG1cMY5X2pglRn3LBeEUQSax7gcK98',
                     available: balance,
                     avlPreview,
                     isOverLimit,
