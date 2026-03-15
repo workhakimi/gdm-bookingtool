@@ -1286,14 +1286,14 @@ $transition: 0.15s ease;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    padding: 24px 28px;
+    padding: 16px 20px;
 }
 
 .cart-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 .header-title {
     font-size: 12px;
@@ -1321,8 +1321,8 @@ $transition: 0.15s ease;
 }
 .btn-empty-cart {
     margin-left: auto;
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 5px 10px;
+    font-size: 11px;
     font-weight: 600;
     color: $gray-500;
     background: $gray-100;
@@ -1369,9 +1369,9 @@ $transition: 0.15s ease;
 .table-head {
     display: flex;
     align-items: center;
-    padding-bottom: 10px;
+    padding-bottom: 8px;
     border-bottom: 1px solid $gray-200;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 .th {
     font-size: 12px;
@@ -1396,7 +1396,7 @@ $transition: 0.15s ease;
 .table-row {
     display: flex;
     align-items: center;
-    padding: 14px 0;
+    padding: 10px 0;
     border-bottom: 1px solid $gray-100;
     &:last-child { border-bottom: none; }
 }
@@ -1409,14 +1409,14 @@ $transition: 0.15s ease;
 .td-action  { width: 44px;  justify-content: center; flex-shrink: 0; }
 
 .product-img {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     border-radius: $radius-sm;
     object-fit: cover;
 }
 .product-img-placeholder {
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     border-radius: $radius-sm;
     background: $gray-100;
     display: flex;
@@ -1487,8 +1487,8 @@ $transition: 0.15s ease;
 }
 
 .qty-input {
-    width: 72px;
-    height: 36px;
+    width: 64px;
+    height: 32px;
     border: 1.5px solid $gray-300;
     border-radius: $radius-sm;
     text-align: center;
@@ -1538,8 +1538,8 @@ $transition: 0.15s ease;
     min-width: 240px;
     display: flex;
     flex-direction: column;
-    padding: 24px 22px;
-    gap: 18px;
+    padding: 16px 18px;
+    gap: 14px;
 }
 
 .rp-section {
@@ -1549,7 +1549,7 @@ $transition: 0.15s ease;
 }
 
 .rp-section--existing-top {
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 }
 .rp-label {
     font-size: 12px;
@@ -1596,7 +1596,7 @@ $transition: 0.15s ease;
     display: flex;
     align-items: center;
     width: 100%;
-    height: 40px;
+    height: 36px;
     padding: 0 12px;
     border: 1.5px solid $gray-200;
     border-radius: $radius-sm;
@@ -1701,7 +1701,7 @@ $transition: 0.15s ease;
     justify-content: center;
     gap: 6px;
     width: 100%;
-    height: 52px;
+    height: 42px;
     margin-top: 4px;
     padding: 0 16px;
     font-size: 12px;
@@ -1824,7 +1824,7 @@ $transition: 0.15s ease;
 }
 .booking-search-input {
     width: 100%;
-    height: 40px;
+    height: 36px;
     padding: 0 12px;
     border: 1.5px solid $gray-200;
     border-radius: $radius-sm;
@@ -1940,7 +1940,7 @@ $transition: 0.15s ease;
 .input-icon-wrap {
     display: flex;
     align-items: center;
-    height: 40px;
+    height: 36px;
     border: 1.5px solid $gray-200;
     border-radius: $radius-sm;
     padding: 0 12px;
@@ -1991,7 +1991,7 @@ $transition: 0.15s ease;
     z-index: 50;
     background: $white;
     border-radius: $radius;
-    padding: 18px;
+    padding: 14px;
     margin: -6px -8px -8px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.12);
 }
@@ -2003,7 +2003,7 @@ $transition: 0.15s ease;
     justify-content: center;
     gap: 8px;
     width: 100%;
-    height: 46px;
+    height: 40px;
     border: none;
     border-radius: $radius-sm;
     font-size: 12px;
