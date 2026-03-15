@@ -17,10 +17,11 @@
                     <button
                         type="button"
                         class="btn-empty-cart"
+                        :class="{ 'btn-empty-cart--confirm': emptyCartConfirm }"
                         :disabled="itemCount === 0 || isInputsDisabled"
                         @click="emptyCart"
                     >
-                        Empty Cart
+                        {{ emptyCartConfirm ? 'Confirm empty?' : 'Empty Cart' }}
                     </button>
                 </div>
             </div>
@@ -47,7 +48,7 @@
                 <div class="table-body">
                     <div
                         v-for="(item, idx) in resolvedCart"
-                        :key="item.sku"
+                        :key="item.sku || idx"
                         class="table-row"
                     >
                         <!-- Image -->
@@ -149,6 +150,7 @@
                                             :class="{ 'is-highlighted': idx === row._highlightedIndex }"
                                             @mousedown.prevent="selectSkuForDraft(row._uid, inv)"
                                         >
+
                                             <img v-if="inv.imagelink || inv.image_link" :src="inv.imagelink || inv.image_link" :alt="inv.sku" class="dd-item-img" />
                                             <div v-else class="dd-item-img dd-item-img--placeholder">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -163,6 +165,7 @@
                                             </div>
                                             <span class="dd-item-sku">{{ inv.sku }}</span>
                                         </div>
+                                        <div v-if="filteredInventory(row._searchQuery).length === 30" class="sku-dropdown-hint">Showing first 30 — refine your search</div>
                                     </div>
                                 </transition>
                             </div>
@@ -226,6 +229,7 @@
                         type="button"
                         class="btn-disconnect"
                         :disabled="isInputsDisabled"
+                        title="Disconnect booking (keeps cart items)"
                         @click="disconnectBooking"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -381,6 +385,9 @@
                     </svg>
                     {{ confirmLabel }}
                 </button>
+                <p v-if="stagingStatus === 'Failed'" class="booking-failed-hint">
+                    Something went wrong. <button type="button" class="btn-failed-dismiss" @click="onDismissFailure">Dismiss</button>
+                </p>
                 <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
                     Booked as <span class="booking-success-var">{{ getBookingNumber(cartHeader) }}</span> &mdash; <span class="booking-success-var">{{ getBookingTitle(cartHeader) }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
                 </p>
@@ -397,6 +404,7 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
 const EMPTY_HEADER = { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null };
+const BUFFER_WARNING_THRESHOLD = 25; // avlPreview in [0, THRESHOLD) triggers "Using Buffer"
 
 function getBookingNumber(header) {
     return header?.bookingnumber ?? null;
@@ -535,7 +543,7 @@ export default {
         const isReleasing = computed(() => stagingStatus.value === 'Releasing');
         const isFailed = computed(() => stagingStatus.value === 'Failed');
         const isSuccessState = computed(() => stagingStatus.value === 'Successful' || stagingStatus.value === 'Successful_Released');
-        const isInputsDisabled = computed(() => isSending.value || isReleasing.value || isSuccessState.value || isFailed.value);
+        const isInputsDisabled = computed(() => isSending.value || isReleasing.value || isSuccessState.value);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -549,6 +557,8 @@ export default {
 
         const lastAttemptedAction = ref(null); // 'booking' | 'releaseBooking' — used for retry when Failed
         const originalBookingQtys = ref({}); // sku -> qty when booking was loaded (for Avl. Preview)
+        const emptyCartConfirm = ref(false); // two-click confirm for empty cart
+        let _qtyDebounceTimer = null; // debounce handle for quantity changes
 
         // ── Draft rows for inline SKU search ──
         const draftRows = ref([]);
@@ -630,7 +640,7 @@ export default {
                 const qty = i.quantity != null ? i.quantity : 0;
                 const originalQty = originals[skuKey] ?? 0;
                 const avlPreview = balance + originalQty - qty;
-                const isUsingBuffer = avlPreview >= 0 && avlPreview < 25;
+                const isUsingBuffer = avlPreview >= 0 && avlPreview < BUFFER_WARNING_THRESHOLD;
                 const isOverLimit = avlPreview < 0;
                 return {
                     sku: skuKey,
@@ -753,10 +763,13 @@ export default {
             if (!item) return;
             const itemSku = item.sku;
 
-            emit('trigger-event', {
-                name: 'quantityChange',
-                event: { value: buildCartVariable({ quantityOverrides: { [itemSku]: qty } }) },
-            });
+            clearTimeout(_qtyDebounceTimer);
+            _qtyDebounceTimer = setTimeout(() => {
+                emit('trigger-event', {
+                    name: 'quantityChange',
+                    event: { value: buildCartVariable({ quantityOverrides: { [itemSku]: qty } }) },
+                });
+            }, 300);
         }
 
         function removeItem(index) {
@@ -903,6 +916,12 @@ export default {
             /* wwEditor:start */
             if (props.wwEditorState?.isEditing) return;
             /* wwEditor:end */
+            if (!emptyCartConfirm.value) {
+                emptyCartConfirm.value = true;
+                setTimeout(() => { emptyCartConfirm.value = false; }, 3000);
+                return;
+            }
+            emptyCartConfirm.value = false;
 
             const h = cartHeader.value || {};
             emit('trigger-event', {
@@ -950,6 +969,14 @@ export default {
             });
         }
 
+        function onDismissFailure() {
+            lastAttemptedAction.value = null;
+            emit('trigger-event', {
+                name: 'failedDismiss',
+                event: { value: buildCartVariable() },
+            });
+        }
+
         function onConfirmClick() {
             if (stagingStatus.value === 'Failed') {
                 if (lastAttemptedAction.value === 'booking') {
@@ -960,6 +987,7 @@ export default {
                 return;
             }
             if (stagingStatus.value === 'Successful') {
+                draftRows.value = [];
                 const payload = buildCartVariable();
                 emit('trigger-event', {
                     name: 'successDismiss',
@@ -973,6 +1001,7 @@ export default {
                 return;
             }
             if (stagingStatus.value === 'Successful_Released') {
+                draftRows.value = [];
                 emit('trigger-event', {
                     name: 'resetCart',
                     event: {
@@ -1183,6 +1212,8 @@ export default {
             selectBooking,
             togglePICDropdown,
             selectPIC,
+            emptyCartConfirm,
+            onDismissFailure,
         };
     },
 };
@@ -1319,6 +1350,15 @@ $transition: 0.15s ease;
     &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+    &.btn-empty-cart--confirm {
+        color: $red-dark;
+        background: #fef2f2;
+        border-color: #fca5a5;
+        &:hover:not(:disabled) {
+            background: #fee2e2;
+            border-color: $red-dark;
+        }
     }
 }
 
@@ -2110,5 +2150,33 @@ $transition: 0.15s ease;
         width: 100%;
         height: 36px;
     }
+}
+
+/* ── Failed dismiss ── */
+.booking-failed-hint {
+    font-size: 12px;
+    color: $red-dark;
+    margin: 6px 0 0;
+}
+.btn-failed-dismiss {
+    background: none;
+    border: none;
+    color: $red-dark;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    font-family: inherit;
+}
+
+/* ── Dropdown truncation hint ── */
+.sku-dropdown-hint {
+    padding: 6px 12px;
+    font-size: 11px;
+    color: $gray-400;
+    text-align: center;
+    border-top: 1px solid $gray-200;
+    pointer-events: none;
 }
 </style>
