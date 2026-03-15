@@ -7,6 +7,75 @@
 
         <!-- ═══════════ LEFT PANEL ═══════════ -->
         <div class="left-panel">
+            <!-- Existing Booking -->
+            <div class="rp-section rp-section--existing-top">
+                <label class="rp-label rp-label--caps">
+                    <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10" />
+                        <polyline points="1 20 1 14 7 14" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                    existing booking
+                    <span class="connection-badge" :class="isConnected ? 'connection-badge--on' : ''">
+                        ({{ isConnected ? 'Connected' : 'Not Connected' }})
+                    </span>
+                </label>
+                <!-- Connected: booking chip + disconnect button -->
+                <div v-if="isConnected" class="connected-booking-row">
+                    <div class="connected-chip">
+                        <span class="connected-bn">{{ connectedBookingNumber }}</span>
+                        <span v-if="getBookingTitle(cartHeader)" class="connected-title">{{ getBookingTitle(cartHeader) }}</span>
+                    </div>
+                    <button
+                        type="button"
+                        class="btn-disconnect"
+                        :disabled="isInputsDisabled"
+                        title="Disconnect booking (keeps cart items)"
+                        @click="disconnectBooking"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M5.16 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.72-1.71" />
+                            <line x1="2" y1="2" x2="22" y2="22" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Not connected: search input with dropdown (auto-connects on selection) -->
+                <div v-else class="booking-search-wrap" ref="bookingSelectEl">
+                    <input
+                        type="text"
+                        class="booking-search-input"
+                        placeholder="Search existing booking..."
+                        :value="bookingSearchQuery"
+                        :disabled="isInputsDisabled"
+                        @input="bookingSearchQuery = $event.target.value; bookingDropdownOpen = true; bookingHighlightedIndex = -1"
+                        @focus="bookingDropdownOpen = true"
+                        @blur="onBookingSearchBlur"
+                        @keydown="onBookingSearchKeydown($event)"
+                    />
+                    <transition name="dropdown-fade">
+                        <div v-if="bookingDropdownOpen" class="booking-dropdown" ref="bookingDropdownRef">
+                            <div class="booking-dropdown-item booking-dropdown-item--placeholder" @mousedown.prevent="bookingDropdownOpen = false; bookingHighlightedIndex = -1">
+                                Select Booking ID...
+                            </div>
+                            <div
+                                v-for="(h, idx) in filteredBookingHeaders"
+                                :key="h.id"
+                                class="booking-dropdown-item"
+                                :class="{ 'is-highlighted': idx === bookingHighlightedIndex }"
+                                @mousedown.prevent="selectBooking(h)"
+                            >
+                                {{ formatBookingOption(h) }}
+                            </div>
+                            <div v-if="filteredBookingHeaders.length === 0 && bookingSearchQuery.trim()" class="booking-dropdown-item booking-dropdown-item--empty">
+                                No matches
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            </div>
+
             <div class="cart-header">
                 <div class="header-info">
                     <h2 class="header-title">Booking Cart</h2>
@@ -187,75 +256,6 @@
 
         <!-- ═══════════ RIGHT PANEL ═══════════ -->
         <div class="right-panel">
-            <!-- Existing Booking -->
-            <div class="rp-section">
-                <label class="rp-label rp-label--caps">
-                    <svg class="label-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="23 4 23 10 17 10" />
-                        <polyline points="1 20 1 14 7 14" />
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                    </svg>
-                    existing booking
-                    <span class="connection-badge" :class="isConnected ? 'connection-badge--on' : ''">
-                        ({{ isConnected ? 'Connected' : 'Not Connected' }})
-                    </span>
-                </label>
-                <!-- Connected: booking chip + disconnect button -->
-                <div v-if="isConnected" class="connected-booking-row">
-                    <div class="connected-chip">
-                        <span class="connected-bn">{{ connectedBookingNumber }}</span>
-                        <span v-if="getBookingTitle(cartHeader)" class="connected-title">{{ getBookingTitle(cartHeader) }}</span>
-                    </div>
-                    <button
-                        type="button"
-                        class="btn-disconnect"
-                        :disabled="isInputsDisabled"
-                        title="Disconnect booking (keeps cart items)"
-                        @click="disconnectBooking"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M5.16 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.72-1.71" />
-                            <line x1="2" y1="2" x2="22" y2="22" />
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Not connected: search input with dropdown (auto-connects on selection) -->
-                <div v-else class="booking-search-wrap" ref="bookingSelectEl">
-                    <input
-                        type="text"
-                        class="booking-search-input"
-                        placeholder="Search existing booking..."
-                        :value="bookingSearchQuery"
-                        :disabled="isInputsDisabled"
-                        @input="bookingSearchQuery = $event.target.value; bookingDropdownOpen = true; bookingHighlightedIndex = -1"
-                        @focus="bookingDropdownOpen = true"
-                        @blur="onBookingSearchBlur"
-                        @keydown="onBookingSearchKeydown($event)"
-                    />
-                    <transition name="dropdown-fade">
-                        <div v-if="bookingDropdownOpen" class="booking-dropdown" ref="bookingDropdownRef">
-                            <div class="booking-dropdown-item booking-dropdown-item--placeholder" @mousedown.prevent="bookingDropdownOpen = false; bookingHighlightedIndex = -1">
-                                Select Booking ID...
-                            </div>
-                            <div
-                                v-for="(h, idx) in filteredBookingHeaders"
-                                :key="h.id"
-                                class="booking-dropdown-item"
-                                :class="{ 'is-highlighted': idx === bookingHighlightedIndex }"
-                                @mousedown.prevent="selectBooking(h)"
-                            >
-                                {{ formatBookingOption(h) }}
-                            </div>
-                            <div v-if="filteredBookingHeaders.length === 0 && bookingSearchQuery.trim()" class="booking-dropdown-item booking-dropdown-item--empty">
-                                No matches
-                            </div>
-                        </div>
-                    </transition>
-                </div>
-            </div>
-
             <!-- Booking Title -->
             <div class="rp-section">
                 <label class="rp-label">Booking Title<span v-if="bookingTitleWillUpdate" class="label-updating"> (Updating)</span></label>
