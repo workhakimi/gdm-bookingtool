@@ -421,7 +421,8 @@ export default {
     setup(props, { emit }) {
         // ── Resolve bound collections ──
         const referenceData = computed(() =>
-            wwLib.wwUtils.getDataFromCollection(props.content?.referenceData) || []
+            (wwLib.wwUtils.getDataFromCollection(props.content?.referenceData) || [])
+                .filter(item => item.sku && !String(item.sku).includes('#N/A'))
         );
         const resolvedBookingHeaders = computed(() =>
             wwLib.wwUtils.getDataFromCollection(props.content?.bookingHeaders) || []
