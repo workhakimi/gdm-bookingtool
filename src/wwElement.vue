@@ -1547,6 +1547,10 @@ $transition: 0.15s ease;
     flex-direction: column;
     gap: 6px;
 }
+
+.rp-section--existing-top {
+    margin-bottom: 16px;
+}
 .rp-label {
     font-size: 12px;
     font-weight: 600;
