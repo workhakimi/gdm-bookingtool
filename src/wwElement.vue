@@ -1268,7 +1268,7 @@ $transition: 0.15s ease;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(17, 24, 39, 0.45);
+    background: rgba(255, 255, 255, 0.7);
     z-index: 40;
     pointer-events: auto;
 }
