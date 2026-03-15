@@ -25,6 +25,7 @@
                     <div class="connected-chip">
                         <span class="connected-bn">{{ connectedBookingNumber }}</span>
                         <span v-if="getBookingTitle(cartHeader)" class="connected-title">{{ getBookingTitle(cartHeader) }}</span>
+                        <span v-if="getBookingPICName(cartHeader)" class="connected-pic">{{ getBookingPICName(cartHeader) }}</span>
                     </div>
                     <button
                         type="button"
@@ -1226,8 +1227,8 @@ $gray-200: #e5e7eb;
 $gray-100: #f3f4f6;
 $gray-50: #f9fafb;
 $white: #ffffff;
-$radius: 10px;
-$radius-sm: 6px;
+$radius: 0;
+$radius-sm: 0;
 $transition: 0.15s ease;
 
 /* ── Root container ── */
@@ -1878,7 +1879,7 @@ $transition: 0.15s ease;
 /* ── Connected booking chip ── */
 .connected-booking-row {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 8px;
 }
 .connected-chip {
@@ -1907,9 +1908,15 @@ $transition: 0.15s ease;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.connected-pic {
+    font-size: 11px;
+    color: $gray-400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 .btn-disconnect {
     width: 36px;
-    height: 36px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
