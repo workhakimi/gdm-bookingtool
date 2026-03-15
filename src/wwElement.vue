@@ -1,5 +1,5 @@
 <template>
-    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-deleting': isDeleting, 'is-success': isSuccessState }">
+    <div class="inventory-booking-cart" :class="{ 'is-sending': isSending, 'is-releasing': isReleasing, 'is-success': isSuccessState }">
         <!-- Success overlay — darkens the tool, only confirm area is elevated above it -->
         <transition name="overlay-fade">
             <div v-if="isSuccessState" class="success-overlay"></div>
@@ -88,7 +88,7 @@
 
                         <!-- Status -->
                         <div class="td td-status">
-                            <span class="status-badge">{{ item.statusDisplay }}</span>
+                            <span class="status-badge" :style="statusBadgeStyle(item.statusDisplay)">{{ item.statusDisplay }}</span>
                         </div>
 
                         <!-- Order quantity -->
@@ -343,13 +343,13 @@
                     :class="{
                         'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
                         'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessState && !isFailed,
-                        'btn-confirm--delete': isConnectedWithEmptyCart && !isSuccessState && !isFailed,
-                        'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Deleting',
+                        'btn-confirm--release': isConnectedWithEmptyCart && !isSuccessState && !isFailed,
+                        'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Releasing',
                         'btn-confirm--failed': stagingStatus === 'Failed',
                         'btn-confirm--success': stagingStatus === 'Successful',
-                        'btn-confirm--success-deleted': stagingStatus === 'Successful_Deleted',
+                        'btn-confirm--success-released': stagingStatus === 'Successful_Released',
                     }"
-                    :disabled="stagingStatus === 'Sending' || stagingStatus === 'Deleting' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Deleted' && stagingStatus !== 'Failed' && !canConfirm && !isConnectedWithEmptyCart)"
+                    :disabled="stagingStatus === 'Sending' || stagingStatus === 'Releasing' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Released' && stagingStatus !== 'Failed' && !canConfirm && !isConnectedWithEmptyCart)"
                     @click="onConfirmClick"
                     type="button"
                 >
@@ -359,8 +359,8 @@
                         <line x1="12" y1="8" x2="12" y2="12" />
                         <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
-                    <!-- Sending / Deleting: clock -->
-                    <svg v-else-if="stagingStatus === 'Sending' || stagingStatus === 'Deleting'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <!-- Sending / Releasing: clock -->
+                    <svg v-else-if="stagingStatus === 'Sending' || stagingStatus === 'Releasing'" class="confirm-icon confirm-icon--spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                     </svg>
@@ -384,8 +384,8 @@
                 <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
                     Booked as <span class="booking-success-var">{{ getBookingNumber(cartHeader) }}</span> &mdash; <span class="booking-success-var">{{ getBookingTitle(cartHeader) }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
                 </p>
-                <p v-if="stagingStatus === 'Successful_Deleted'" class="booking-success-line">
-                    Deleted <span class="booking-success-var">{{ deletedBn }}</span>
+                <p v-if="stagingStatus === 'Successful_Released'" class="booking-success-line">
+                    Released <span class="booking-success-var">{{ releasedBn }}</span>
                 </p>
                 <p v-if="isSuccessState" class="success-dismiss-hint">Click the button to continue</p>
             </div>
@@ -518,24 +518,24 @@ export default {
                 h = src;
                 items = [];
             }
-            if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [], staging_status: src.staging_status ?? null, updated_at: src.updated_at, deleted_bn: src.deleted_bn ?? null };
+            if (!h && !items) return { booking_header: { ...EMPTY_HEADER }, booking_items: [], staging_status: src.staging_status ?? null, updated_at: src.updated_at, released_bn: src.released_bn ?? null };
             return {
                 booking_header: normalizeHeader(h) || { ...EMPTY_HEADER },
                 booking_items: Array.isArray(items) ? items.map(normalizeItem) : [],
                 staging_status: src.staging_status ?? null,
                 updated_at: src.updated_at,
-                deleted_bn: src.deleted_bn ?? null,
+                released_bn: src.released_bn ?? null,
             };
         });
         const cartHeader = computed(() => cartDataObj.value?.booking_header || {});
         const cartItems = computed(() => cartDataObj.value?.booking_items || []);
         const stagingStatus = computed(() => cartDataObj.value?.staging_status ?? null);
-        const deletedBn = computed(() => cartDataObj.value?.deleted_bn ?? null);
+        const releasedBn = computed(() => cartDataObj.value?.released_bn ?? null);
         const isSending = computed(() => stagingStatus.value === 'Sending');
-        const isDeleting = computed(() => stagingStatus.value === 'Deleting');
+        const isReleasing = computed(() => stagingStatus.value === 'Releasing');
         const isFailed = computed(() => stagingStatus.value === 'Failed');
-        const isSuccessState = computed(() => stagingStatus.value === 'Successful' || stagingStatus.value === 'Successful_Deleted');
-        const isInputsDisabled = computed(() => isSending.value || isDeleting.value || isSuccessState.value || isFailed.value);
+        const isSuccessState = computed(() => stagingStatus.value === 'Successful' || stagingStatus.value === 'Successful_Released');
+        const isInputsDisabled = computed(() => isSending.value || isReleasing.value || isSuccessState.value || isFailed.value);
 
         // ── UI-only state (form fields + dropdowns) ──
         const bookingTitle = ref('');
@@ -547,7 +547,7 @@ export default {
         const bookingDropdownOpen = ref(false);
         const picDropdownOpen = ref(false);
 
-        const lastAttemptedAction = ref(null); // 'booking' | 'deleteBooking' — used for retry when Failed
+        const lastAttemptedAction = ref(null); // 'booking' | 'releaseBooking' — used for retry when Failed
         const originalBookingQtys = ref({}); // sku -> qty when booking was loaded (for Avl. Preview)
 
         // ── Draft rows for inline SKU search ──
@@ -593,7 +593,7 @@ export default {
         }, { immediate: true, deep: true });
 
         watch(stagingStatus, (s) => {
-            if (s === 'Successful' || s === 'Successful_Deleted') lastAttemptedAction.value = null;
+            if (s === 'Successful' || s === 'Successful_Released') lastAttemptedAction.value = null;
         });
 
         // ── Reference data lookup ──
@@ -602,6 +602,23 @@ export default {
             referenceData.value.forEach(r => { map[r.sku] = r; });
             return map;
         });
+
+        // ── Standard status badge colors ──
+        const STATUS_COLORS = {
+            'Booked': { bg: '#dbeafe', color: '#1e40af' },
+            'Carted': { bg: '#dbeafe', color: '#1e40af' },
+            'Issue Raised': { bg: '#fee2e2', color: '#991b1b' },
+            'Processing': { bg: '#fef9c3', color: '#854d0e' },
+            'Delivered to Production': { bg: '#f3e8ff', color: '#6b21a8' },
+            'Delivered to Client': { bg: '#dcfce7', color: '#166534' },
+            'Released': { bg: '#f3f4f6', color: '#6b7280' },
+        };
+
+        function statusBadgeStyle(status) {
+            const s = STATUS_COLORS[status];
+            if (s) return { background: s.bg, color: s.color };
+            return {};
+        }
 
         // ── Resolved cart — balance for over-limit check; Avl. Preview = availability + original booking qty + order qty ──
         const resolvedCart = computed(() => {
@@ -650,11 +667,11 @@ export default {
         const itemCount = computed(() => cartItems.value.length);
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
-            if (stagingStatus.value === 'Deleting') return 'Deleting Booking...';
+            if (stagingStatus.value === 'Releasing') return 'Releasing Booking...';
             if (stagingStatus.value === 'Failed') return 'There was a problem, Click to retry';
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
-            if (stagingStatus.value === 'Successful_Deleted') return 'Successfully Deleted';
-            if (isConnectedWithEmptyCart.value) return 'Delete Booking';
+            if (stagingStatus.value === 'Successful_Released') return 'Successfully Released';
+            if (isConnectedWithEmptyCart.value) return 'Release Booking';
             return hasOverbooking.value && canConfirm.value ? 'Proceed (Overbooked)' : 'Confirm Booking';
         });
         const successTeammateName = computed(() => {
@@ -911,7 +928,7 @@ export default {
             return `BN-${digits}`;
         }
 
-        function emitDeleteBooking() {
+        function emitReleaseBooking() {
             const h = cartHeader.value || {};
             const header = {
                 id: h.id ?? null,
@@ -920,12 +937,12 @@ export default {
                 bookingtitle: getBookingTitle(h) ?? null,
                 pic_id: h.pic_id ?? null,
             };
-            lastAttemptedAction.value = 'deleteBooking';
+            lastAttemptedAction.value = 'releaseBooking';
             emit('trigger-event', {
-                name: 'deleteBooking',
+                name: 'releaseBooking',
                 event: {
                     value: {
-                        staging_status: 'Deleting',
+                        staging_status: 'Releasing',
                         booking_items: [],
                         booking_header: header,
                     },
@@ -937,8 +954,8 @@ export default {
             if (stagingStatus.value === 'Failed') {
                 if (lastAttemptedAction.value === 'booking') {
                     confirmBooking();
-                } else if (lastAttemptedAction.value === 'deleteBooking') {
-                    emitDeleteBooking();
+                } else if (lastAttemptedAction.value === 'releaseBooking') {
+                    emitReleaseBooking();
                 }
                 return;
             }
@@ -955,7 +972,7 @@ export default {
                 });
                 return;
             }
-            if (stagingStatus.value === 'Successful_Deleted') {
+            if (stagingStatus.value === 'Successful_Released') {
                 emit('trigger-event', {
                     name: 'resetCart',
                     event: {
@@ -968,7 +985,7 @@ export default {
                 return;
             }
             if (isConnectedWithEmptyCart.value) {
-                emitDeleteBooking();
+                emitReleaseBooking();
                 return;
             }
             confirmBooking();
@@ -1109,6 +1126,7 @@ export default {
             formatBookingOption,
             formatShortDate,
             resolvedCart,
+            statusBadgeStyle,
             resolvedBookingHeaders,
             filteredBookingHeaders,
             bookingSearchQuery,
@@ -1128,9 +1146,9 @@ export default {
             picWillUpdate,
             isConnected,
             stagingStatus,
-            deletedBn,
+            releasedBn,
             isSending,
-            isDeleting,
+            isReleasing,
             isSuccessState,
             isInputsDisabled,
             cartHeader,
@@ -1209,14 +1227,14 @@ $transition: 0.15s ease;
 
     &.is-sending .left-panel,
     &.is-sending .right-panel,
-    &.is-deleting .left-panel,
-    &.is-deleting .right-panel,
+    &.is-releasing .left-panel,
+    &.is-releasing .right-panel,
     &.is-success .left-panel,
     &.is-success .right-panel {
         pointer-events: none;
     }
     &.is-sending .btn-confirm,
-    &.is-deleting .btn-confirm,
+    &.is-releasing .btn-confirm,
     &.is-success .confirm-area--elevated {
         pointer-events: auto;
     }
@@ -1973,7 +1991,7 @@ $transition: 0.15s ease;
         cursor: not-allowed;
         &:hover { background: $gray-200; }
     }
-    &.btn-confirm--delete {
+    &.btn-confirm--release {
         background: $red;
         color: $white;
         &:hover { background: $red-dark; }
@@ -1990,7 +2008,7 @@ $transition: 0.15s ease;
         &:hover { background: $red-dark; }
     }
     &.btn-confirm--success,
-    &.btn-confirm--success-deleted {
+    &.btn-confirm--success-released {
         background: $green;
         color: $white;
         cursor: pointer;

@@ -116,11 +116,11 @@ export default {
             default: false,
         },
         {
-            name: 'deleteBooking',
-            label: { en: 'On Delete Booking' },
+            name: 'releaseBooking',
+            label: { en: 'On Release Booking' },
             event: {
                 value: {
-                    staging_status: 'Deleting',
+                    staging_status: 'Releasing',
                     booking_items: [],
                     booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
                 },
