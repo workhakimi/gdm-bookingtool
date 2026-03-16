@@ -1006,7 +1006,7 @@ export default {
             /* wwEditor:end */
 
             emit('trigger-event', {
-                name: 'resetCart',
+                name: 'unloadBooking',
                 event: {
                     value: {
                         booking_items: [],

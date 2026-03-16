@@ -133,6 +133,17 @@ export default {
             default: false,
         },
         {
+            name: 'unloadBooking',
+            label: { en: 'On Unload Booking' },
+            event: {
+                value: {
+                    booking_items: [],
+                    booking_header: { id: null, pic_id: null, created_at: null, bookingtitle: null, bookingnumber: null },
+                },
+            },
+            default: false,
+        },
+        {
             name: 'resetCart',
             label: { en: 'On Reset Cart' },
             event: {
