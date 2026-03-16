@@ -163,7 +163,7 @@
                                 class="qty-input"
                                 :class="{ 'is-over': item.isOverLimit }"
                                 :value="item.quantity"
-                                min="1"
+                                min="0"
                                 :disabled="isInputsDisabled"
                                 @input="updateQuantity(idx, $event.target.value)"
                             />
@@ -760,7 +760,8 @@ export default {
         const canConfirm = computed(() =>
             cartItems.value.length > 0 &&
             bookingTitle.value.trim().length > 0 &&
-            selectedPIC.value != null
+            selectedPIC.value != null &&
+            activeCartItems.value.every(i => i.quantity > 0)
         );
         const isConnectedWithEmptyCart = computed(() =>
             isConnected.value && cartItems.value.length === 0
@@ -857,7 +858,7 @@ export default {
             /* wwEditor:end */
             if (isInputsDisabled.value) return;
 
-            const qty = Math.max(1, parseInt(val) || 1);
+            const qty = Math.max(0, parseInt(val) || 0);
             const item = cartItems.value[index];
             if (!item) return;
             const itemSku = item.sku;
