@@ -100,6 +100,7 @@ export default {
                     booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
                     booking_items: [],
                     updated_at: null,
+                    change_log: { id: null, timestamp: null, category: null, action: null, description: null, connection: null },
                 },
             },
             default: true,

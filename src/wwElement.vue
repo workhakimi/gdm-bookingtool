@@ -117,7 +117,7 @@
                 </div>
                 <div class="table-body">
                     <div
-                        v-for="(item, idx) in resolvedCart"
+                        v-for="(item, idx) in activeCartItems"
                         :key="item.sku || idx"
                         class="table-row"
                     >
@@ -250,6 +250,44 @@
                 Add Item
             </button>
             <p class="add-item-hint">Click Add Item below or in previewer to add to cart.</p>
+
+            <!-- Released items collapsible -->
+            <div v-if="releasedCartItems.length" class="released-section">
+                <button type="button" class="released-toggle" @click="releasedOpen = !releasedOpen">
+                    <svg class="released-chevron" :class="{ 'is-open': releasedOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                    Released ({{ releasedCartItems.length }})
+                </button>
+                <div class="released-body" :class="{ 'is-open': releasedOpen }">
+                    <div class="released-inner">
+                        <div
+                            v-for="item in releasedCartItems"
+                            :key="item.sku"
+                            class="table-row table-row--released"
+                        >
+                            <div class="td td-image">
+                                <img :src="item.imageLink" :alt="item.model" class="product-img" />
+                            </div>
+                            <div class="td td-details">
+                                <div class="product-model">{{ item.model }}</div>
+                                <div class="product-variant">{{ item.color }} · {{ item.size }}</div>
+                                <div class="product-sku">{{ item.sku }}</div>
+                            </div>
+                            <div class="td td-avail">
+                                <span class="avail-number">{{ item.avlPreview }}</span>
+                            </div>
+                            <div class="td td-status">
+                                <span class="status-badge" :style="statusBadgeStyle(item.statusDisplay)">{{ item.statusDisplay }}</span>
+                            </div>
+                            <div class="td td-qty">
+                                <span class="released-qty">{{ item.quantity }}</span>
+                            </div>
+                            <div class="td td-action"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ═══════════ DIVIDER ═══════════ -->
@@ -642,8 +680,13 @@ export default {
             });
         });
 
+        // ── Active / Released split ──
+        const activeCartItems = computed(() => resolvedCart.value.filter(i => i.statusDisplay !== 'Released'));
+        const releasedCartItems = computed(() => resolvedCart.value.filter(i => i.statusDisplay === 'Released'));
+        const releasedOpen = ref(false);
+
         // ── Computed helpers ──
-        const hasOverbooking = computed(() => resolvedCart.value.some(i => i.isOverLimit));
+        const hasOverbooking = computed(() => activeCartItems.value.some(i => i.isOverLimit));
         const canConfirm = computed(() =>
             cartItems.value.length > 0 &&
             bookingTitle.value.trim().length > 0 &&
@@ -657,7 +700,7 @@ export default {
                 ? `Modifying Order #${connectedBookingNumber.value}`
                 : 'Drafting New Order'
         );
-        const itemCount = computed(() => cartItems.value.length);
+        const itemCount = computed(() => activeCartItems.value.length);
         const confirmLabel = computed(() => {
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
             if (stagingStatus.value === 'Releasing') return 'Releasing Booking...';
@@ -931,6 +974,17 @@ export default {
             });
         }
 
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                const r = (Math.random() * 16) | 0;
+                return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+            });
+        }
+
+        function klTimestamp() {
+            return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kuala_Lumpur' }).replace(' ', 'T') + '+08:00';
+        }
+
         function generateBookingNumber() {
             const t = Date.now();
             const digits = (t % 1e6).toString().padStart(6, '0');
@@ -1022,11 +1076,13 @@ export default {
             const editing = isConnected.value;
 
             const itemsSnapshot = snapshot.booking_items ?? [];
-            const bookingItemsAsBooked = itemsSnapshot.map(i => ({
+            // Active items get status 'Booked', released items keep 'Released'
+            const allItems = itemsSnapshot.map(i => ({
                 sku: i.sku,
                 quantity: i.quantity ?? 0,
-                status: 'Booked',
+                status: i.status === 'Released' ? 'Released' : 'Booked',
             }));
+            const activeOnly = allItems.filter(i => i.status !== 'Released');
 
             const snapHeader = snapshot.booking_header ?? {};
             const header = {
@@ -1041,6 +1097,20 @@ export default {
                 header.bookingnumber = generateBookingNumber();
             }
 
+            // Build change_log entry
+            const bn = header.bookingnumber || '—';
+            const skuList = activeOnly.map(i => i.sku).join(', ');
+            const changeLog = {
+                id: generateUUID(),
+                timestamp: klTimestamp(),
+                category: 'Booking',
+                action: editing ? 'Booking Updated by User' : 'Booking Created by User',
+                description: editing
+                    ? `In Booking ${bn}, ${activeOnly.length} line item(s) updated by User in Booking Cart. (${skuList || 'none'})`
+                    : `Booking ${bn} created with ${activeOnly.length} line item(s) by User in Booking Cart. (${skuList || 'none'})`,
+                connection: header.id,
+            };
+
             if (hasOverbooking.value) {
                 emit('trigger-event', {
                     name: 'overbooking',
@@ -1048,7 +1118,7 @@ export default {
                         value: {
                             overbooked: true,
                             booking_header: header,
-                            booking_items: bookingItemsAsBooked,
+                            booking_items: allItems,
                         },
                     },
                 });
@@ -1062,8 +1132,9 @@ export default {
                         staging_status: 'Sending',
                         is_edit: editing,
                         booking_header: header,
-                        booking_items: bookingItemsAsBooked,
+                        booking_items: allItems,
                         updated_at: now,
+                        change_log: changeLog,
                     },
                 },
             });
@@ -1145,6 +1216,9 @@ export default {
             formatBookingOption,
             formatShortDate,
             resolvedCart,
+            activeCartItems,
+            releasedCartItems,
+            releasedOpen,
             statusBadgeStyle,
             resolvedBookingHeaders,
             filteredBookingHeaders,
@@ -1359,6 +1433,53 @@ $transition: 0.15s ease;
     margin: 6px 0 0;
     text-align: center;
     font-style: italic;
+}
+
+/* ── Released section (collapsible) ── */
+.released-section {
+    margin-top: 8px;
+    border-top: 1px solid $gray-100;
+}
+.released-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: $gray-400;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    transition: color $transition;
+    &:hover { color: $gray-600; }
+}
+.released-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    &.is-open { transform: rotate(90deg); }
+}
+.released-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s ease;
+    &.is-open { grid-template-rows: 1fr; }
+}
+.released-inner {
+    overflow: hidden;
+}
+.table-row--released {
+    opacity: 0.5;
+}
+.released-qty {
+    font-size: 12px;
+    font-weight: 500;
+    color: $gray-500;
 }
 
 /* ── Cart table ── */
