@@ -527,8 +527,10 @@ export default {
             };
         }
         function normalizeItem(it) {
-            if (!it || typeof it !== 'object') return { sku: null, quantity: 0, status: null };
+            if (!it || typeof it !== 'object') return { id: null, headerid: null, sku: null, quantity: 0, status: null };
             return {
+                id: it.id ?? null,
+                headerid: it.headerid ?? it.header_id ?? null,
                 sku: it.sku ?? null,
                 quantity: it.quantity ?? 0,
                 status: it.status ?? null,
@@ -608,6 +610,8 @@ export default {
                     cartItems.value.map(i => [i.sku, i.quantity ?? 0])
                 );
                 originalBookingItems.value = cartItems.value.map(i => ({
+                    id: i.id ?? null,
+                    headerid: i.headerid ?? null,
                     sku: i.sku,
                     quantity: i.quantity ?? 0,
                     status: i.status ?? null,
@@ -756,6 +760,8 @@ export default {
         // ── Helper: build full cartData snapshot from the variable ──
         function buildCartVariable({ excludeSku, quantityOverrides } = {}) {
             let items = cartItems.value.map(i => ({
+                id: i.id ?? null,
+                headerid: i.headerid ?? null,
                 sku: i.sku,
                 quantity: i.quantity != null ? i.quantity : 0,
                 status: i.status ?? null,
@@ -1082,26 +1088,7 @@ export default {
             const snapshot = buildCartVariable();
             const editing = isConnected.value;
 
-            const itemsSnapshot = snapshot.booking_items ?? [];
-            // Active items get status 'Booked', released items keep 'Released'
-            const allItems = itemsSnapshot.map(i => ({
-                sku: i.sku,
-                quantity: i.quantity ?? 0,
-                status: i.status === 'Released' ? 'Released' : 'Booked',
-            }));
-
-            // Items removed from the cart that were in the original booking → emit as Released
-            if (editing) {
-                const currentSkus = new Set(allItems.map(i => i.sku));
-                originalBookingItems.value.forEach(orig => {
-                    if (!currentSkus.has(orig.sku)) {
-                        allItems.push({ sku: orig.sku, quantity: orig.quantity ?? 0, status: 'Released' });
-                    }
-                });
-            }
-
-            const activeOnly = allItems.filter(i => i.status !== 'Released');
-
+            // Build header first so items can reference header.id
             const snapHeader = snapshot.booking_header ?? {};
             const header = {
                 id: snapHeader.id ?? null,
@@ -1114,6 +1101,34 @@ export default {
                 header.id = generateUUID();
                 header.bookingnumber = generateBookingNumber();
             }
+
+            const itemsSnapshot = snapshot.booking_items ?? [];
+            // Active items get status 'Booked', released items keep 'Released'
+            const allItems = itemsSnapshot.map(i => ({
+                id: i.id ?? generateUUID(),
+                headerid: i.headerid ?? header.id,
+                sku: i.sku,
+                quantity: i.quantity ?? 0,
+                status: i.status === 'Released' ? 'Released' : 'Booked',
+            }));
+
+            // Items removed from the cart that were in the original booking → emit as Released
+            if (editing) {
+                const currentSkus = new Set(allItems.map(i => i.sku));
+                originalBookingItems.value.forEach(orig => {
+                    if (!currentSkus.has(orig.sku)) {
+                        allItems.push({
+                            id: orig.id ?? generateUUID(),
+                            headerid: orig.headerid ?? header.id,
+                            sku: orig.sku,
+                            quantity: orig.quantity ?? 0,
+                            status: 'Released',
+                        });
+                    }
+                });
+            }
+
+            const activeOnly = allItems.filter(i => i.status !== 'Released');
 
             // Build detailed change_log entry
             const bn = header.bookingnumber || '-';
