@@ -1089,6 +1089,17 @@ export default {
                 quantity: i.quantity ?? 0,
                 status: i.status === 'Released' ? 'Released' : 'Booked',
             }));
+
+            // Items removed from the cart that were in the original booking → emit as Released
+            if (editing) {
+                const currentSkus = new Set(allItems.map(i => i.sku));
+                originalBookingItems.value.forEach(orig => {
+                    if (!currentSkus.has(orig.sku)) {
+                        allItems.push({ sku: orig.sku, quantity: orig.quantity ?? 0, status: 'Released' });
+                    }
+                });
+            }
+
             const activeOnly = allItems.filter(i => i.status !== 'Released');
 
             const snapHeader = snapshot.booking_header ?? {};
@@ -1114,7 +1125,6 @@ export default {
 
             // Detect changes
             const added = [];
-            const removed = [];
             const qtyChanged = [];
             const newlyReleased = [];
 
@@ -1123,10 +1133,6 @@ export default {
                 allItems.forEach(c => {
                     if (!origMap[c.sku]) added.push(c);
                 });
-                // Items in original but not in current → removed
-                originalBookingItems.value.forEach(o => {
-                    if (!currentMap[o.sku]) removed.push(o);
-                });
                 // Quantity changes (active items only)
                 activeOnly.forEach(c => {
                     const orig = origMap[c.sku];
@@ -1134,7 +1140,7 @@ export default {
                         qtyChanged.push({ sku: c.sku, from: orig.quantity, to: c.quantity });
                     }
                 });
-                // Newly released (was not Released before, now Released)
+                // Newly released (was not Released before, now is Released — includes items removed from cart)
                 releasedItems.forEach(c => {
                     const orig = origMap[c.sku];
                     if (!orig || orig.status !== 'Released') newlyReleased.push(c);
@@ -1148,9 +1154,6 @@ export default {
                 if (added.length > 0) {
                     descParts.push(`added ${added.length} line item(s) (${added.map(i => i.sku).join(', ')})`);
                 }
-                if (removed.length > 0) {
-                    descParts.push(`removed ${removed.length} line item(s) (${removed.map(i => i.sku).join(', ')})`);
-                }
                 if (qtyChanged.length > 0) {
                     const qtyDetails = qtyChanged.map(q => `${q.sku} from qty ${q.from} to ${q.to}`).join(', ');
                     descParts.push(`changed quantity of ${qtyChanged.length} line item(s) (${qtyDetails})`);
@@ -1158,7 +1161,7 @@ export default {
                 if (newlyReleased.length > 0) {
                     descParts.push(`released ${newlyReleased.length} line item(s) (${newlyReleased.map(i => i.sku).join(', ')})`);
                 }
-                if (added.length === 0 && removed.length === 0 && qtyChanged.length === 0 && newlyReleased.length === 0) {
+                if (added.length === 0 && qtyChanged.length === 0 && newlyReleased.length === 0) {
                     descParts.push(`${activeOnly.length} active line item(s) confirmed with no changes (${activeOnly.map(i => i.sku).join(', ') || 'none'})`);
                 }
                 descParts.push(`via Inventory Booking Cart`);
