@@ -1111,7 +1111,7 @@ export default {
                 pic_id: snapHeader.pic_id ?? selectedPIC.value ?? null,
             };
             if (!editing) {
-                header.id = null;
+                header.id = generateUUID();
                 header.bookingnumber = generateBookingNumber();
             }
 
