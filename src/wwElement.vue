@@ -1066,6 +1066,7 @@ export default {
         }
 
         function emitReleaseBooking() {
+            const now = new Date().toISOString();
             const h = cartHeader.value || {};
             const header = {
                 id: h.id ?? null,
@@ -1074,14 +1075,38 @@ export default {
                 bookingtitle: getBookingTitle(h) ?? null,
                 pic_id: h.pic_id ?? null,
             };
+
+            // All original items become Released
+            const allItems = originalBookingItems.value.map(i => ({
+                id: i.id ?? generateUUID(),
+                headerid: i.headerid ?? header.id,
+                sku: i.sku,
+                quantity: i.quantity ?? 0,
+                status: 'Released',
+            }));
+
+            const bn = getBookingNumber(h) || '-';
+            const skuList = allItems.map(i => i.sku).join(', ');
+            const changeLog = {
+                id: generateUUID(),
+                timestamp: klTimestamp(),
+                category: 'Booking',
+                action: 'Booking Released by User with Inventory Booking Cart',
+                description: `Booking ${bn} fully released with ${allItems.length} line item(s) (${skuList || 'none'}) via Inventory Booking Cart.`,
+                connection: header.id,
+            };
+
             lastAttemptedAction.value = 'releaseBooking';
             emit('trigger-event', {
                 name: 'releaseBooking',
                 event: {
                     value: {
                         staging_status: 'Releasing',
-                        booking_items: [],
+                        is_edit: true,
                         booking_header: header,
+                        booking_items: allItems,
+                        updated_at: now,
+                        change_log: changeLog,
                     },
                 },
             });
