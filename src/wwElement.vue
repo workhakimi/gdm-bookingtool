@@ -1216,21 +1216,19 @@ export default {
             // Items removed from the cart that were in the original booking → emit as Released
             if (editing) {
                 const currentIds = new Set(allItems.map(i => i.id).filter(Boolean));
-                const currentSkuStatus = new Set(allItems.map(i => i.sku + '|' + (i.status || '')));
+                const currentSkus = new Set(allItems.map(i => i.sku));
                 originalBookingItems.value.forEach(orig => {
-                    // Match by id if available, otherwise by sku+status combo
-                    const matched = orig.id
-                        ? currentIds.has(orig.id)
-                        : currentSkuStatus.has(orig.sku + '|' + (orig.status || ''));
-                    if (!matched) {
-                        allItems.push({
-                            id: orig.id ?? generateUUID(),
-                            headerid: orig.headerid ?? header.id,
-                            sku: orig.sku,
-                            quantity: orig.quantity ?? 0,
-                            status: 'Released',
-                        });
-                    }
+                    // If this SKU exists in current items (any status), user already handled it
+                    if (currentSkus.has(orig.sku)) return;
+                    // Match by id as secondary check
+                    if (orig.id && currentIds.has(orig.id)) return;
+                    allItems.push({
+                        id: orig.id ?? generateUUID(),
+                        headerid: orig.headerid ?? header.id,
+                        sku: orig.sku,
+                        quantity: orig.quantity ?? 0,
+                        status: 'Released',
+                    });
                 });
             }
 
