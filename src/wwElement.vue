@@ -1258,26 +1258,26 @@ export default {
             const newlyReleased = [];
 
             if (editing) {
-                // Build a lookup of originally Released SKUs
+                // Build lookups by SKU for cross-status matching
+                const origBySku = {};
+                originalBookingItems.value.forEach(o => {
+                    if (!origBySku[o.sku]) origBySku[o.sku] = o;
+                });
                 const origReleasedSkus = new Set(
                     originalBookingItems.value.filter(o => o.status === 'Released').map(o => o.sku)
                 );
-                // Active items: check if truly new or re-added from released
+                // Active items: check if truly new, re-added from released, or qty changed
                 activeOnly.forEach(c => {
                     const orig = findOrig(c);
+                    const origAnySku = origBySku[c.sku];
                     if (!orig) {
-                        // No direct match — check if this SKU was originally Released
                         if (origReleasedSkus.has(c.sku)) {
-                            readdedFromReleased.push(c);
+                            const fromQty = origAnySku ? origAnySku.quantity : null;
+                            readdedFromReleased.push({ ...c, fromQty });
                         } else {
                             added.push(c);
                         }
-                    }
-                });
-                // Quantity changes (active items only, that existed before as active)
-                activeOnly.forEach(c => {
-                    const orig = findOrig(c);
-                    if (orig && orig.quantity !== c.quantity) {
+                    } else if (orig.quantity !== c.quantity) {
                         qtyChanged.push({ sku: c.sku, from: orig.quantity, to: c.quantity });
                     }
                 });
@@ -1293,10 +1293,16 @@ export default {
             if (editing) {
                 descParts.push(`In Booking ${bn}`);
                 if (readdedFromReleased.length > 0) {
-                    descParts.push(`re-added ${readdedFromReleased.length} line item(s) from released (${readdedFromReleased.map(i => i.sku).join(', ')})`);
+                    const details = readdedFromReleased.map(i => {
+                        if (i.fromQty != null && i.fromQty !== i.quantity) {
+                            return `${i.sku} from qty ${i.fromQty} to ${i.quantity}`;
+                        }
+                        return `${i.sku} qty ${i.quantity}`;
+                    }).join(', ');
+                    descParts.push(`re-added ${readdedFromReleased.length} line item(s) from released (${details})`);
                 }
                 if (added.length > 0) {
-                    descParts.push(`added ${added.length} line item(s) (${added.map(i => i.sku).join(', ')})`);
+                    descParts.push(`added ${added.length} line item(s) (${added.map(i => `${i.sku} qty ${i.quantity}`).join(', ')})`);
                 }
                 if (qtyChanged.length > 0) {
                     const qtyDetails = qtyChanged.map(q => `${q.sku} from qty ${q.from} to ${q.to}`).join(', ');
