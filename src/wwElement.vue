@@ -118,7 +118,7 @@
                 <div class="table-body">
                     <div
                         v-for="(item, idx) in activeCartItems"
-                        :key="item.sku || idx"
+                        :key="item._originalIndex"
                         class="table-row"
                     >
                         <!-- Image -->
@@ -165,13 +165,13 @@
                                 :value="item.quantity"
                                 min="0"
                                 :disabled="isInputsDisabled"
-                                @input="updateQuantity(idx, $event.target.value)"
+                                @input="updateQuantity(item._originalIndex, $event.target.value)"
                             />
                         </div>
 
                         <!-- Remove -->
                         <div class="td td-action">
-                            <button type="button" class="btn-remove" :disabled="isInputsDisabled" @click="removeItem(idx)">
+                            <button type="button" class="btn-remove" :disabled="isInputsDisabled" @click="removeItem(item._originalIndex)">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6" />
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -263,7 +263,7 @@
                     <div class="released-inner">
                         <div
                             v-for="item in releasedCartItems"
-                            :key="item.sku"
+                            :key="item._originalIndex"
                             class="table-row table-row--released"
                         >
                             <div class="td td-image">
@@ -628,9 +628,13 @@ export default {
             if (currentId === lastSyncedHeaderId.value) return;
 
             if (currentId) {
-                originalBookingQtys.value = Object.fromEntries(
-                    cartItems.value.map(i => [i.sku, i.quantity ?? 0])
-                );
+                const qtyMap = {};
+                cartItems.value.forEach(i => {
+                    if ((i.status || '') !== 'Released') {
+                        qtyMap[i.sku] = (qtyMap[i.sku] || 0) + (i.quantity ?? 0);
+                    }
+                });
+                originalBookingQtys.value = qtyMap;
                 originalBookingItems.value = cartItems.value.map(i => ({
                     id: i.id ?? null,
                     headerid: i.headerid ?? null,
@@ -702,16 +706,27 @@ export default {
         // ── Resolved cart — balance for over-limit check; Avl. Preview = availability + original booking qty + order qty ──
         const resolvedCart = computed(() => {
             const originals = originalBookingQtys.value;
-            return cartItems.value.map(i => {
+            // Sum active (non-Released) qty per SKU for balance calculation
+            const activeQtyBySku = {};
+            cartItems.value.forEach(i => {
+                if ((i.status || '') !== 'Released') {
+                    activeQtyBySku[i.sku] = (activeQtyBySku[i.sku] || 0) + (i.quantity ?? 0);
+                }
+            });
+            return cartItems.value.map((i, idx) => {
                 const skuKey = i.sku;
                 const ref = refLookup.value[skuKey];
                 const balance = ref ? (Number(ref.balance) || 0) : 0;
                 const qty = i.quantity != null ? i.quantity : 0;
                 const originalQty = originals[skuKey] ?? 0;
-                const avlPreview = balance + originalQty - qty;
-                const isUsingBuffer = avlPreview >= 0 && avlPreview < BUFFER_WARNING_THRESHOLD;
-                const isOverLimit = avlPreview < 0;
+                const isReleased = (i.status || '') === 'Released';
+                // Released items don't consume balance; for active items, use total active qty for that SKU
+                const totalActiveQty = activeQtyBySku[skuKey] || 0;
+                const avlPreview = isReleased ? balance : (balance + originalQty - totalActiveQty);
+                const isUsingBuffer = !isReleased && avlPreview >= 0 && avlPreview < BUFFER_WARNING_THRESHOLD;
+                const isOverLimit = !isReleased && avlPreview < 0;
                 return {
+                    _originalIndex: idx,
                     sku: skuKey,
                     quantity: qty,
                     statusDisplay: i.status && String(i.status).trim() ? i.status : 'Carted',
@@ -820,8 +835,9 @@ export default {
         });
 
         // ── Helper: build full cartData snapshot from the variable ──
-        function buildCartVariable({ excludeSku, quantityOverrides } = {}) {
-            let items = cartItems.value.map(i => ({
+        function buildCartVariable({ excludeIndex, quantityOverrides } = {}) {
+            let items = cartItems.value.map((i, idx) => ({
+                _idx: idx,
                 id: i.id ?? null,
                 headerid: i.headerid ?? null,
                 sku: i.sku,
@@ -829,15 +845,16 @@ export default {
                 status: i.status ?? null,
             }));
 
-            if (excludeSku) {
-                items = items.filter(i => i.sku !== excludeSku);
+            if (excludeIndex != null) {
+                items = items.filter(i => i._idx !== excludeIndex);
             }
             if (quantityOverrides) {
-                for (const sku in quantityOverrides) {
-                    const item = items.find(i => i.sku === sku);
-                    if (item) item.quantity = quantityOverrides[sku];
+                for (const idx in quantityOverrides) {
+                    const item = items.find(i => i._idx === Number(idx));
+                    if (item) item.quantity = quantityOverrides[idx];
                 }
             }
+            items.forEach(i => { delete i._idx; });
 
             return {
                 booking_header: {
@@ -862,13 +879,12 @@ export default {
             const qty = Math.max(0, parseInt(val) || 0);
             const item = cartItems.value[index];
             if (!item) return;
-            const itemSku = item.sku;
 
             clearTimeout(_qtyDebounceTimer);
             _qtyDebounceTimer = setTimeout(() => {
                 emit('trigger-event', {
                     name: 'quantityChange',
-                    event: { value: buildCartVariable({ quantityOverrides: { [itemSku]: qty } }) },
+                    event: { value: buildCartVariable({ quantityOverrides: { [index]: qty } }) },
                 });
             }, 300);
         }
@@ -884,7 +900,7 @@ export default {
 
             emit('trigger-event', {
                 name: 'removeFromCart',
-                event: { value: buildCartVariable({ excludeSku: item.sku }) },
+                event: { value: buildCartVariable({ excludeIndex: index }) },
             });
         }
 
@@ -1199,9 +1215,14 @@ export default {
 
             // Items removed from the cart that were in the original booking → emit as Released
             if (editing) {
-                const currentSkus = new Set(allItems.map(i => i.sku));
+                const currentIds = new Set(allItems.map(i => i.id).filter(Boolean));
+                const currentSkuStatus = new Set(allItems.map(i => i.sku + '|' + (i.status || '')));
                 originalBookingItems.value.forEach(orig => {
-                    if (!currentSkus.has(orig.sku)) {
+                    // Match by id if available, otherwise by sku+status combo
+                    const matched = orig.id
+                        ? currentIds.has(orig.id)
+                        : currentSkuStatus.has(orig.sku + '|' + (orig.status || ''));
+                    if (!matched) {
                         allItems.push({
                             id: orig.id ?? generateUUID(),
                             headerid: orig.headerid ?? header.id,
@@ -1218,10 +1239,19 @@ export default {
             // Build detailed change_log entry
             const bn = header.bookingnumber || '-';
             const releasedItems = allItems.filter(i => i.status === 'Released');
-            const origMap = {};
-            originalBookingItems.value.forEach(o => { origMap[o.sku] = o; });
-            const currentMap = {};
-            allItems.forEach(c => { currentMap[c.sku] = c; });
+            // Build orig lookup by id (supports duplicate SKUs)
+            const origById = {};
+            const origBySkuStatus = {};
+            originalBookingItems.value.forEach(o => {
+                if (o.id) origById[o.id] = o;
+                const key = o.sku + '|' + (o.status || '');
+                if (!origBySkuStatus[key]) origBySkuStatus[key] = o;
+            });
+            function findOrig(item) {
+                if (item.id && origById[item.id]) return origById[item.id];
+                const key = item.sku + '|' + (item.status === 'Released' ? 'Released' : '');
+                return origBySkuStatus[key] || null;
+            }
 
             // Detect changes
             const added = [];
@@ -1231,18 +1261,18 @@ export default {
             if (editing) {
                 // Items in current but not in original → added
                 allItems.forEach(c => {
-                    if (!origMap[c.sku]) added.push(c);
+                    if (!findOrig(c)) added.push(c);
                 });
                 // Quantity changes (active items only)
                 activeOnly.forEach(c => {
-                    const orig = origMap[c.sku];
+                    const orig = findOrig(c);
                     if (orig && orig.quantity !== c.quantity) {
                         qtyChanged.push({ sku: c.sku, from: orig.quantity, to: c.quantity });
                     }
                 });
                 // Newly released (was not Released before, now is Released — includes items removed from cart)
                 releasedItems.forEach(c => {
-                    const orig = origMap[c.sku];
+                    const orig = findOrig(c);
                     if (!orig || orig.status !== 'Released') newlyReleased.push(c);
                 });
             }
