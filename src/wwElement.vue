@@ -283,7 +283,14 @@
                             <div class="td td-qty">
                                 <span class="released-qty">{{ item.quantity }}</span>
                             </div>
-                            <div class="td td-action"></div>
+                            <div class="td td-action">
+                                <button type="button" class="btn-unrelease" :disabled="isInputsDisabled" @click="unreleaseItem(item._originalIndex)" title="Return to cart">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="1 4 1 10 7 10" />
+                                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -835,7 +842,7 @@ export default {
         });
 
         // ── Helper: build full cartData snapshot from the variable ──
-        function buildCartVariable({ excludeIndex, quantityOverrides } = {}) {
+        function buildCartVariable({ excludeIndex, quantityOverrides, statusOverrides } = {}) {
             let items = cartItems.value.map((i, idx) => ({
                 _idx: idx,
                 id: i.id ?? null,
@@ -852,6 +859,12 @@ export default {
                 for (const idx in quantityOverrides) {
                     const item = items.find(i => i._idx === Number(idx));
                     if (item) item.quantity = quantityOverrides[idx];
+                }
+            }
+            if (statusOverrides) {
+                for (const idx in statusOverrides) {
+                    const item = items.find(i => i._idx === Number(idx));
+                    if (item) item.status = statusOverrides[idx];
                 }
             }
             items.forEach(i => { delete i._idx; });
@@ -901,6 +914,21 @@ export default {
             emit('trigger-event', {
                 name: 'removeFromCart',
                 event: { value: buildCartVariable({ excludeIndex: index }) },
+            });
+        }
+
+        function unreleaseItem(index) {
+            /* wwEditor:start */
+            if (props.wwEditorState?.isEditing) return;
+            /* wwEditor:end */
+            if (isInputsDisabled.value) return;
+
+            const item = cartItems.value[index];
+            if (!item) return;
+
+            emit('trigger-event', {
+                name: 'quantityChange',
+                event: { value: buildCartVariable({ statusOverrides: { [index]: null } }) },
             });
         }
 
@@ -1459,6 +1487,7 @@ export default {
             onBookingSearchKeydown,
             updateQuantity,
             removeItem,
+            unreleaseItem,
             disconnectBooking,
             emptyCart,
             onConfirmClick,
@@ -1875,6 +1904,22 @@ $transition: 0.15s ease;
     transition: color $transition, background $transition;
     svg { width: 18px; height: 18px; }
     &:hover { color: $red; background: rgba($red, 0.06); }
+}
+.btn-unrelease {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: $gray-400;
+    cursor: pointer;
+    border-radius: $radius-sm;
+    transition: color $transition, background $transition;
+    svg { width: 16px; height: 16px; }
+    &:hover { color: $primary; background: rgba($primary, 0.06); }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 /* ═══════════ DIVIDER ═══════════ */
