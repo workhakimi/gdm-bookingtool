@@ -1455,7 +1455,7 @@ $transition: 0.15s ease;
     letter-spacing: 0.03em;
     text-transform: uppercase;
     transition: color $transition;
-    &:hover { color: $gray-600; }
+    &:hover { color: $gray-500; }
 }
 .released-chevron {
     width: 14px;
