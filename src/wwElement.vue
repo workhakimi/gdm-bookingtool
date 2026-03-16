@@ -1009,12 +1009,8 @@ export default {
                 name: 'loadBooking',
                 event: {
                     value: {
-                        booking_header: { ...EMPTY_HEADER },
-                        booking_items: cartItems.value.map(i => ({
-                            sku: i.sku,
-                            quantity: 0,
-                            status: null,
-                        })),
+                        booking_items: [],
+                        booking_header: { id: null, pic_id: null, created_at: null, bookingtitle: null, bookingnumber: null },
                     },
                 },
             });
