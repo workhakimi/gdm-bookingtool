@@ -1658,7 +1658,7 @@ $transition: 0.15s ease;
 .cl-action {
     font-size: 11px;
     font-weight: 500;
-    color: $gray-600;
+    color: $gray-500;
 }
 .cl-time {
     margin-left: auto;
