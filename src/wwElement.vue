@@ -298,7 +298,7 @@
                     Change Log ({{ currentChangeLogs.length }})
                 </button>
                 <div class="released-body" :class="{ 'is-open': changeLogOpen }">
-                    <div class="released-inner">
+                    <div class="released-inner changelog-scroll">
                         <div v-for="log in currentChangeLogs" :key="log.id" class="cl-entry">
                             <div class="cl-row">
                                 <span class="cl-category">{{ log.category }}</span>
@@ -1711,6 +1711,10 @@ $transition: 0.15s ease;
 .changelog-section {
     margin-top: 4px;
     border-top: 1px solid $gray-100;
+}
+.changelog-scroll {
+    max-height: 200px;
+    overflow-y: auto;
 }
 .cl-entry {
     padding: 8px 0;
