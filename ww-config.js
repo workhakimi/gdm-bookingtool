@@ -61,18 +61,6 @@ export default {
             default: false,
         },
         {
-            name: 'overbooking',
-            label: { en: 'On Overbooking' },
-            event: {
-                value: {
-                    overbooked: true,
-                    booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
-                    booking_items: [],
-                },
-            },
-            default: false,
-        },
-        {
             name: 'loadBooking',
             label: { en: 'On Load Booking' },
             event: {

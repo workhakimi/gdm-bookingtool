@@ -761,7 +761,8 @@ export default {
             cartItems.value.length > 0 &&
             bookingTitle.value.trim().length > 0 &&
             selectedPIC.value != null &&
-            activeCartItems.value.every(i => i.quantity > 0)
+            activeCartItems.value.every(i => i.quantity > 0) &&
+            !hasOverbooking.value
         );
         const isConnectedWithEmptyCart = computed(() =>
             isConnected.value && cartItems.value.length === 0
@@ -780,7 +781,7 @@ export default {
             if (stagingStatus.value === 'Successful') return 'Successfully Booked';
             if (stagingStatus.value === 'Successful_Released') return 'Successfully Released';
             if (isConnectedWithEmptyCart.value) return 'Release Booking';
-            return hasOverbooking.value && canConfirm.value ? 'Proceed (Overbooked)' : 'Confirm Booking';
+            return 'Confirm Booking';
         });
         const successTeammateName = computed(() => {
             if (stagingStatus.value !== 'Successful') return '';
@@ -1282,19 +1283,6 @@ export default {
                 description: descParts.join(', ') + '.',
                 connection: header.id,
             };
-
-            if (hasOverbooking.value) {
-                emit('trigger-event', {
-                    name: 'overbooking',
-                    event: {
-                        value: {
-                            overbooked: true,
-                            booking_header: header,
-                            booking_items: allItems,
-                        },
-                    },
-                });
-            }
 
             lastAttemptedAction.value = 'booking';
             emit('trigger-event', {
