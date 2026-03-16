@@ -12,6 +12,7 @@ export default {
                     'teammatesList',
                     'bookingHeaders',
                     'bookingItems',
+                    'changeLogData',
                     'filterDiscPending',
                 ],
             },
@@ -227,6 +228,19 @@ export default {
             bindingValidation: {
                 type: 'boolean',
                 tooltip: 'When enabled, hides items whose tags include "DISC" or "Pending" from the manual entry dropdown',
+            },
+            /* wwEditor:end */
+        },
+        changeLogData: {
+            label: { en: 'Change Log Data' },
+            type: 'ObjectList',
+            section: 'settings',
+            bindable: true,
+            defaultValue: [],
+            /* wwEditor:start */
+            bindingValidation: {
+                type: 'array',
+                tooltip: 'Array of change log objects: { id, timestamp, category, action, description, connection }',
             },
             /* wwEditor:end */
         },

@@ -288,6 +288,28 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Change Log collapsible -->
+            <div v-if="isConnected && currentChangeLogs.length" class="changelog-section">
+                <button type="button" class="released-toggle" @click="changeLogOpen = !changeLogOpen">
+                    <svg class="released-chevron" :class="{ 'is-open': changeLogOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                    Change Log ({{ currentChangeLogs.length }})
+                </button>
+                <div class="released-body" :class="{ 'is-open': changeLogOpen }">
+                    <div class="released-inner">
+                        <div v-for="log in currentChangeLogs" :key="log.id" class="cl-entry">
+                            <div class="cl-row">
+                                <span class="cl-category">{{ log.category }}</span>
+                                <span class="cl-action">{{ log.action }}</span>
+                                <span class="cl-time">{{ formatLogDate(log.timestamp) }}</span>
+                            </div>
+                            <div class="cl-desc">{{ log.description }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ═══════════ DIVIDER ═══════════ -->
@@ -710,6 +732,28 @@ export default {
         const activeCartItems = computed(() => resolvedCart.value.filter(i => i.statusDisplay !== 'Released'));
         const releasedCartItems = computed(() => resolvedCart.value.filter(i => i.statusDisplay === 'Released'));
         const releasedOpen = ref(false);
+        const changeLogOpen = ref(false);
+
+        // ── Change Log data ──
+        const changeLogData = computed(() =>
+            wwLib.wwUtils.getDataFromCollection(props.content?.changeLogData) || []
+        );
+        const currentChangeLogs = computed(() => {
+            const hdrId = cartHeader.value?.id;
+            if (!hdrId) return [];
+            return changeLogData.value
+                .filter(log => log.connection === hdrId)
+                .slice()
+                .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+        });
+
+        function formatLogDate(ts) {
+            if (!ts) return '';
+            try {
+                const d = new Date(ts);
+                return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+            } catch { return ts; }
+        }
 
         // ── Computed helpers ──
         const hasOverbooking = computed(() => activeCartItems.value.some(i => i.isOverLimit));
@@ -1321,6 +1365,9 @@ export default {
             activeCartItems,
             releasedCartItems,
             releasedOpen,
+            changeLogOpen,
+            currentChangeLogs,
+            formatLogDate,
             statusBadgeStyle,
             resolvedBookingHeaders,
             filteredBookingHeaders,
@@ -1583,6 +1630,46 @@ $transition: 0.15s ease;
     font-size: 12px;
     font-weight: 500;
     color: $gray-500;
+}
+
+/* ── Change Log section ── */
+.changelog-section {
+    margin-top: 4px;
+    border-top: 1px solid $gray-100;
+}
+.cl-entry {
+    padding: 8px 0;
+    border-bottom: 1px solid $gray-50;
+    &:last-child { border-bottom: none; }
+}
+.cl-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+.cl-category {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: $gray-400;
+    letter-spacing: 0.03em;
+}
+.cl-action {
+    font-size: 11px;
+    font-weight: 500;
+    color: $gray-600;
+}
+.cl-time {
+    margin-left: auto;
+    font-size: 10px;
+    color: $gray-300;
+    white-space: nowrap;
+}
+.cl-desc {
+    font-size: 11px;
+    color: $gray-400;
+    line-height: 1.4;
 }
 
 /* ── Cart table ── */
@@ -2224,7 +2311,6 @@ $transition: 0.15s ease;
     border-radius: $radius;
     padding: 14px;
     margin: -6px -8px -8px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
 }
 
 /* ── Confirm button ── */
