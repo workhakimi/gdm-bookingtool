@@ -578,6 +578,7 @@ export default {
 
         const lastAttemptedAction = ref(null); // 'booking' | 'releaseBooking' — used for retry when Failed
         const originalBookingQtys = ref({}); // sku -> qty when booking was loaded (for Avl. Preview)
+        const originalBookingItems = ref([]); // full snapshot [{sku, quantity, status}] when booking was loaded
         const emptyCartConfirm = ref(false); // two-click confirm for empty cart
         let _qtyDebounceTimer = null; // debounce handle for quantity changes
 
@@ -606,8 +607,14 @@ export default {
                 originalBookingQtys.value = Object.fromEntries(
                     cartItems.value.map(i => [i.sku, i.quantity ?? 0])
                 );
+                originalBookingItems.value = cartItems.value.map(i => ({
+                    sku: i.sku,
+                    quantity: i.quantity ?? 0,
+                    status: i.status ?? null,
+                }));
             } else {
                 originalBookingQtys.value = {};
+                originalBookingItems.value = [];
             }
 
             bookingTitle.value = getBookingTitle(header) || '';
@@ -1097,17 +1104,76 @@ export default {
                 header.bookingnumber = generateBookingNumber();
             }
 
-            // Build change_log entry
+            // Build detailed change_log entry
             const bn = header.bookingnumber || '-';
-            const skuList = activeOnly.map(i => i.sku).join(', ');
+            const releasedItems = allItems.filter(i => i.status === 'Released');
+            const origMap = {};
+            originalBookingItems.value.forEach(o => { origMap[o.sku] = o; });
+            const currentMap = {};
+            allItems.forEach(c => { currentMap[c.sku] = c; });
+
+            // Detect changes
+            const added = [];
+            const removed = [];
+            const qtyChanged = [];
+            const newlyReleased = [];
+
+            if (editing) {
+                // Items in current but not in original → added
+                allItems.forEach(c => {
+                    if (!origMap[c.sku]) added.push(c);
+                });
+                // Items in original but not in current → removed
+                originalBookingItems.value.forEach(o => {
+                    if (!currentMap[o.sku]) removed.push(o);
+                });
+                // Quantity changes (active items only)
+                activeOnly.forEach(c => {
+                    const orig = origMap[c.sku];
+                    if (orig && orig.quantity !== c.quantity) {
+                        qtyChanged.push({ sku: c.sku, from: orig.quantity, to: c.quantity });
+                    }
+                });
+                // Newly released (was not Released before, now Released)
+                releasedItems.forEach(c => {
+                    const orig = origMap[c.sku];
+                    if (!orig || orig.status !== 'Released') newlyReleased.push(c);
+                });
+            }
+
+            // Build description parts
+            const descParts = [];
+            if (editing) {
+                descParts.push(`In Booking ${bn}`);
+                if (added.length > 0) {
+                    descParts.push(`added ${added.length} line item(s) (${added.map(i => i.sku).join(', ')})`);
+                }
+                if (removed.length > 0) {
+                    descParts.push(`removed ${removed.length} line item(s) (${removed.map(i => i.sku).join(', ')})`);
+                }
+                if (qtyChanged.length > 0) {
+                    const qtyDetails = qtyChanged.map(q => `${q.sku} from qty ${q.from} to ${q.to}`).join(', ');
+                    descParts.push(`changed quantity of ${qtyChanged.length} line item(s) (${qtyDetails})`);
+                }
+                if (newlyReleased.length > 0) {
+                    descParts.push(`released ${newlyReleased.length} line item(s) (${newlyReleased.map(i => i.sku).join(', ')})`);
+                }
+                if (added.length === 0 && removed.length === 0 && qtyChanged.length === 0 && newlyReleased.length === 0) {
+                    descParts.push(`${activeOnly.length} active line item(s) confirmed with no changes (${activeOnly.map(i => i.sku).join(', ') || 'none'})`);
+                }
+                descParts.push(`via Inventory Booking Cart`);
+            } else {
+                descParts.push(`Booking ${bn} created with ${activeOnly.length} line item(s) (${activeOnly.map(i => `${i.sku} qty ${i.quantity}`).join(', ') || 'none'}) via Inventory Booking Cart`);
+            }
+
             const changeLog = {
                 id: generateUUID(),
                 timestamp: klTimestamp(),
                 category: 'Booking',
-                action: editing ? 'Booking Updated by User' : 'Booking Created by User',
-                description: editing
-                    ? `In Booking ${bn}, ${activeOnly.length} line item(s) updated by User in Booking Cart. (${skuList || 'none'})`
-                    : `Booking ${bn} created with ${activeOnly.length} line item(s) by User in Booking Cart. (${skuList || 'none'})`,
+                action: editing
+                    ? 'Booking Updated by User with Inventory Booking Cart'
+                    : 'Booking Created by User with Inventory Booking Cart',
+                description: descParts.join(', ') + '.',
                 connection: header.id,
             };
 
