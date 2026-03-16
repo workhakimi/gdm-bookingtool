@@ -130,6 +130,17 @@ export default {
             default: false,
         },
         {
+            name: 'failedDismiss',
+            label: { en: 'On Failed Dismiss' },
+            event: {
+                value: {
+                    booking_header: { id: null, bookingnumber: null, created_at: null, bookingtitle: null, pic_id: null },
+                    booking_items: [],
+                },
+            },
+            default: false,
+        },
+        {
             name: 'resetCart',
             label: { en: 'On Reset Cart' },
             event: {

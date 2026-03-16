@@ -1098,7 +1098,7 @@ export default {
             }
 
             // Build change_log entry
-            const bn = header.bookingnumber || '—';
+            const bn = header.bookingnumber || '-';
             const skuList = activeOnly.map(i => i.sku).join(', ');
             const changeLog = {
                 id: generateUUID(),
