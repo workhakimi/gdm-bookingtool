@@ -368,17 +368,23 @@
                         'btn-confirm--overbooked': hasOverbooking && canConfirm && !stagingStatus,
                         'btn-confirm--disabled': !canConfirm && !stagingStatus && !isConnectedWithEmptyCart && !isSuccessState && !isFailed,
                         'btn-confirm--release': isConnectedWithEmptyCart && !isSuccessState && !isFailed,
-                        'btn-confirm--sending': stagingStatus === 'Sending' || stagingStatus === 'Releasing',
-                        'btn-confirm--failed': stagingStatus === 'Failed',
+                        'btn-confirm--sending': (stagingStatus === 'Sending' || stagingStatus === 'Releasing') && !isTimedOut,
+                        'btn-confirm--failed': stagingStatus === 'Failed' || isTimedOut,
                         'btn-confirm--success': stagingStatus === 'Successful',
                         'btn-confirm--success-released': stagingStatus === 'Successful_Released',
                     }"
-                    :disabled="stagingStatus === 'Sending' || stagingStatus === 'Releasing' || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Released' && stagingStatus !== 'Failed' && !canConfirm && !isConnectedWithEmptyCart)"
+                    :disabled="((stagingStatus === 'Sending' || stagingStatus === 'Releasing') && !isTimedOut) || (stagingStatus !== 'Successful' && stagingStatus !== 'Successful_Released' && stagingStatus !== 'Failed' && !isTimedOut && !canConfirm && !isConnectedWithEmptyCart)"
                     @click="onConfirmClick"
                     type="button"
                 >
                     <!-- Overbooked warning icon -->
                     <svg v-if="hasOverbooking && canConfirm && !stagingStatus" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <!-- Timed out / Failed: alert -->
+                    <svg v-else-if="isTimedOut || stagingStatus === 'Failed'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <line x1="12" y1="8" x2="12" y2="12" />
                         <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -392,12 +398,6 @@
                     <svg v-else-if="isSuccessState" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 6L9 17l-5-5" />
                     </svg>
-                    <!-- Failed: alert -->
-                    <svg v-else-if="stagingStatus === 'Failed'" class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
                     <!-- Normal clock/confirm icon -->
                     <svg v-else class="confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10" />
@@ -405,8 +405,8 @@
                     </svg>
                     {{ confirmLabel }}
                 </button>
-                <p v-if="stagingStatus === 'Failed'" class="booking-failed-hint">
-                    Something went wrong. <button type="button" class="btn-failed-dismiss" @click="onDismissFailure">Dismiss</button>
+                <p v-if="stagingStatus === 'Failed' || isTimedOut" class="booking-failed-hint">
+                    {{ isTimedOut ? 'Request timed out.' : 'Something went wrong.' }} <button type="button" class="btn-failed-dismiss" @click="onDismissFailure">Dismiss</button>
                 </p>
                 <p v-if="stagingStatus === 'Successful'" class="booking-success-line">
                     Booked as <span class="booking-success-var">{{ getBookingNumber(cartHeader) }}</span> &mdash; <span class="booking-success-var">{{ getBookingTitle(cartHeader) }}</span> by <span class="booking-success-var">{{ successTeammateName }}</span> at <span class="booking-success-var">{{ formattedBookingTime }}</span>
@@ -634,8 +634,23 @@ export default {
             lastSyncedHeaderId.value = currentId;
         }, { immediate: true, deep: true });
 
+        const isTimedOut = ref(false);
+        let _sendingTimeout = null;
+
         watch(stagingStatus, (s) => {
             if (s === 'Successful' || s === 'Successful_Released') lastAttemptedAction.value = null;
+            // Clear any existing timeout
+            clearTimeout(_sendingTimeout);
+            isTimedOut.value = false;
+            // Start 7s timeout when Sending or Releasing
+            if (s === 'Sending' || s === 'Releasing') {
+                _sendingTimeout = setTimeout(() => {
+                    // Only timeout if still in Sending/Releasing state
+                    if (stagingStatus.value === 'Sending' || stagingStatus.value === 'Releasing') {
+                        isTimedOut.value = true;
+                    }
+                }, 7000);
+            }
         });
 
         // ── Reference data lookup ──
@@ -713,6 +728,7 @@ export default {
         );
         const itemCount = computed(() => activeCartItems.value.length);
         const confirmLabel = computed(() => {
+            if (isTimedOut.value) return 'Timed out, Click to retry';
             if (stagingStatus.value === 'Sending') return 'Submitting Booking...';
             if (stagingStatus.value === 'Releasing') return 'Releasing Booking...';
             if (stagingStatus.value === 'Failed') return 'There was a problem, Click to retry';
@@ -1035,7 +1051,9 @@ export default {
         }
 
         function onConfirmClick() {
-            if (stagingStatus.value === 'Failed') {
+            // Retry on timeout or failure
+            if (isTimedOut.value || stagingStatus.value === 'Failed') {
+                isTimedOut.value = false;
                 if (lastAttemptedAction.value === 'booking') {
                     confirmBooking();
                 } else if (lastAttemptedAction.value === 'releaseBooking') {
@@ -1324,6 +1342,7 @@ export default {
             isConnected,
             stagingStatus,
             releasedBn,
+            isTimedOut,
             isSending,
             isReleasing,
             isSuccessState,
