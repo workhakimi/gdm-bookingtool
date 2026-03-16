@@ -752,7 +752,7 @@ export default {
             try {
                 const d = new Date(ts);
                 return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
-            } catch { return ts; }
+            } catch (e) { return ts; }
         }
 
         // ── Computed helpers ──
