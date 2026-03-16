@@ -1255,15 +1255,28 @@ export default {
 
             // Detect changes
             const added = [];
+            const readdedFromReleased = [];
             const qtyChanged = [];
             const newlyReleased = [];
 
             if (editing) {
-                // Items in current but not in original → added
-                allItems.forEach(c => {
-                    if (!findOrig(c)) added.push(c);
+                // Build a lookup of originally Released SKUs
+                const origReleasedSkus = new Set(
+                    originalBookingItems.value.filter(o => o.status === 'Released').map(o => o.sku)
+                );
+                // Active items: check if truly new or re-added from released
+                activeOnly.forEach(c => {
+                    const orig = findOrig(c);
+                    if (!orig) {
+                        // No direct match — check if this SKU was originally Released
+                        if (origReleasedSkus.has(c.sku)) {
+                            readdedFromReleased.push(c);
+                        } else {
+                            added.push(c);
+                        }
+                    }
                 });
-                // Quantity changes (active items only)
+                // Quantity changes (active items only, that existed before as active)
                 activeOnly.forEach(c => {
                     const orig = findOrig(c);
                     if (orig && orig.quantity !== c.quantity) {
@@ -1281,6 +1294,9 @@ export default {
             const descParts = [];
             if (editing) {
                 descParts.push(`In Booking ${bn}`);
+                if (readdedFromReleased.length > 0) {
+                    descParts.push(`re-added ${readdedFromReleased.length} line item(s) from released (${readdedFromReleased.map(i => i.sku).join(', ')})`);
+                }
                 if (added.length > 0) {
                     descParts.push(`added ${added.length} line item(s) (${added.map(i => i.sku).join(', ')})`);
                 }
@@ -1291,7 +1307,7 @@ export default {
                 if (newlyReleased.length > 0) {
                     descParts.push(`released ${newlyReleased.length} line item(s) (${newlyReleased.map(i => i.sku).join(', ')})`);
                 }
-                if (added.length === 0 && qtyChanged.length === 0 && newlyReleased.length === 0) {
+                if (added.length === 0 && readdedFromReleased.length === 0 && qtyChanged.length === 0 && newlyReleased.length === 0) {
                     descParts.push(`${activeOnly.length} active line item(s) confirmed with no changes (${activeOnly.map(i => i.sku).join(', ') || 'none'})`);
                 }
                 descParts.push(`via Inventory Booking Cart`);
