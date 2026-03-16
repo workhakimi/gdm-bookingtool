@@ -1146,6 +1146,21 @@ export default {
             }
             if (stagingStatus.value === 'Successful') {
                 draftRows.value = [];
+                // Refresh original snapshots so next edit has correct baseline
+                const qtyMap = {};
+                cartItems.value.forEach(i => {
+                    if ((i.status || '') !== 'Released') {
+                        qtyMap[i.sku] = (qtyMap[i.sku] || 0) + (i.quantity ?? 0);
+                    }
+                });
+                originalBookingQtys.value = qtyMap;
+                originalBookingItems.value = cartItems.value.map(i => ({
+                    id: i.id ?? null,
+                    headerid: i.headerid ?? null,
+                    sku: i.sku,
+                    quantity: i.quantity ?? 0,
+                    status: i.status ?? null,
+                }));
                 const payload = buildCartVariable();
                 emit('trigger-event', {
                     name: 'successDismiss',
@@ -1242,7 +1257,7 @@ export default {
             const origBySkuStatus = {};
             originalBookingItems.value.forEach(o => {
                 if (o.id) origById[o.id] = o;
-                const key = o.sku + '|' + (o.status || '');
+                const key = o.sku + '|' + (o.status === 'Released' ? 'Released' : '');
                 if (!origBySkuStatus[key]) origBySkuStatus[key] = o;
             });
             function findOrig(item) {
